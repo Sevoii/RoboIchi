@@ -1,0 +1,12 @@
+# Normal Ignores
+.venv
+.idea
+
+# TenhouDecoder files
+OldTenhouDecoder.py
+translations.js
+log.json
+log1.json
+
+# DB files
+db/*
