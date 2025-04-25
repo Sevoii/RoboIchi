@@ -1,5 +1,5 @@
 import bz2
-import TenhouDecoder
+import tenhou_decoder
 
 
 def extract_bz2(hex_str: str):
@@ -9,22 +9,22 @@ def extract_bz2(hex_str: str):
     compressed = bytes.fromhex(hex_str)
     decompressed = bz2.decompress(compressed).decode()
 
-    return TenhouDecoder.GameData(decompressed)
+    return tenhou_decoder.GameData(decompressed)
 
 
-class DiscardedTile(TenhouDecoder.JsonSerializable):
-    def __init__(self, tile: TenhouDecoder.Tile, discard_type: int):
+class DiscardedTile(tenhou_decoder.JsonSerializable):
+    def __init__(self, tile: tenhou_decoder.Tile, discard_type: int):
         self.tile = tile
         self.discard_type = discard_type  # 0 = tedashi, 1 = tsumogiri
 
 
-class Meld(TenhouDecoder.JsonSerializable):
-    def __init__(self, tiles: list[TenhouDecoder.Tile]):
+class Meld(tenhou_decoder.JsonSerializable):
+    def __init__(self, tiles: list[tenhou_decoder.Tile]):
         self.tiles = tiles
 
 
-class PlayerState(TenhouDecoder.JsonSerializable):
-    def __init__(self, starting_hand: list[TenhouDecoder.Tile], is_oya: bool, global_score: int):
+class PlayerState(tenhou_decoder.JsonSerializable):
+    def __init__(self, starting_hand: list[tenhou_decoder.Tile], is_oya: bool, global_score: int):
         self.closed_hand = sorted(starting_hand)
         self.melds: list[Meld] = []
 
@@ -35,10 +35,10 @@ class PlayerState(TenhouDecoder.JsonSerializable):
         self.is_oya = is_oya
         self.global_score = global_score
 
-    def draw_tile(self, tile: TenhouDecoder.Tile):
+    def draw_tile(self, tile: tenhou_decoder.Tile):
         self.closed_hand.append(tile)
 
-    def discard_tile(self, tile: TenhouDecoder.Tile):
+    def discard_tile(self, tile: tenhou_decoder.Tile):
         # Tile should always be in current hand
         idx = self.closed_hand.index(tile)
         self.closed_hand.pop(idx)
@@ -48,7 +48,7 @@ class PlayerState(TenhouDecoder.JsonSerializable):
     def riichi(self):
         self.is_rii = True
 
-    def call(self, meld: TenhouDecoder.ChiiMeld | TenhouDecoder.PonMeld | TenhouDecoder.KanMeld):
+    def call(self, meld: tenhou_decoder.ChiiMeld | tenhou_decoder.PonMeld | tenhou_decoder.KanMeld):
         removed_tiles = 0
         for i in meld.tiles:
             if i in self.closed_hand:
@@ -83,8 +83,8 @@ class PlayerState(TenhouDecoder.JsonSerializable):
                 self.melds.append(Meld(meld.tiles))
 
 
-class RoundState(TenhouDecoder.JsonSerializable):
-    def __init__(self, round_data: TenhouDecoder.Round, global_scores: list[int]):
+class RoundState(tenhou_decoder.JsonSerializable):
+    def __init__(self, round_data: tenhou_decoder.Round, global_scores: list[int]):
         self.round_no = round_data.round_no.round_no
         self.honba_count = round_data.honba_count
         self.rii_sticks = round_data.rii_sticks
@@ -95,26 +95,26 @@ class RoundState(TenhouDecoder.JsonSerializable):
         self.players = [PlayerState(round_data.starting_hands[i], i == round_data.oya, global_scores[i]) for i in
                         range(4)]
 
-    def draw_tile(self, ev: TenhouDecoder.DrawTileEvent):
+    def draw_tile(self, ev: tenhou_decoder.DrawTileEvent):
         self.players[ev.player].draw_tile(ev.tile)
         self.tiles_left -= 1
 
-    def discard_tile(self, ev: TenhouDecoder.DiscardTileEvent):
+    def discard_tile(self, ev: tenhou_decoder.DiscardTileEvent):
         self.players[ev.player].discard_tile(ev.tile)
 
-    def riichi(self, ev: TenhouDecoder.DiscardTileEvent):
+    def riichi(self, ev: tenhou_decoder.DiscardTileEvent):
         self.players[ev.player].riichi()
 
-    def dora(self, ev: TenhouDecoder.DiscardTileEvent):
+    def dora(self, ev: tenhou_decoder.DiscardTileEvent):
         # TODO - make this just get the dora instead
         self.dora_indicators.append(ev.tile)
 
-    def call(self, ev: TenhouDecoder.CallTileEvent):
+    def call(self, ev: tenhou_decoder.CallTileEvent):
         self.players[ev.player].call(ev.meld)
 
 
 class GameState:
-    def __init__(self, data: TenhouDecoder.GameData):
+    def __init__(self, data: tenhou_decoder.GameData):
         self.data = data
         self.rounds = data.rounds
         self.current_round: RoundState | None = None
@@ -146,15 +146,15 @@ class GameState:
         ev = self.get_next_event()
         if ev is not None:
             match type(ev):
-                case TenhouDecoder.CallTileEvent:
+                case tenhou_decoder.CallTileEvent:
                     self.current_round.call(ev)
-                case TenhouDecoder.DoraIndicatorEvent:
+                case tenhou_decoder.DoraIndicatorEvent:
                     self.current_round.dora(ev)
-                case TenhouDecoder.DrawTileEvent:
+                case tenhou_decoder.DrawTileEvent:
                     self.current_round.draw_tile(ev)
-                case TenhouDecoder.DiscardTileEvent:
+                case tenhou_decoder.DiscardTileEvent:
                     self.current_round.discard_tile(ev)
-                case TenhouDecoder.RiichiEvent:
+                case tenhou_decoder.RiichiEvent:
                     self.current_round.riichi(ev)
                 case _:
                     raise Exception(f"Event {ev.event_name} is not handled")
