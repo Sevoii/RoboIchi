@@ -181,4 +181,4 @@ def check_ankan_after_riichi(tehai: list[int], tile_id: int, strict: bool) -> bo
     return True
 
 
-AGARI_TABLE: dict[int, list['AgariData']] = load_table_from_gzip()
+AGARI_TABLE: dict[int, list['AgariData']] = load_table_from_gzip(__file__ + "/../data/agari.bin.gz")
