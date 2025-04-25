@@ -13,7 +13,9 @@ class JsonSerializable:
     def serialize(self, *args, **kwargs):
         serialization = {}
         for (k, v) in self.__dict__.items():
-            if isinstance(v, JsonSerializable):
+            if k.startswith("_"):
+                continue
+            elif isinstance(v, JsonSerializable):
                 serialization[k] = v.serialize(*args, **kwargs)
             else:
                 serialization[k] = JsonSerializable._serialize(v, *args, **kwargs)
@@ -61,6 +63,12 @@ class Tile(JsonSerializable):
             return Tile._TILES[self.tile] + str(self.tile_num)
         else:
             return self.i
+
+    def __eq__(self, other):
+        return isinstance(other, Tile) and other.i == self.i
+
+    def __lt__(self, other):
+        return isinstance(other, Tile) and self.tile < other.tile
 
 
 class Player(JsonSerializable):
@@ -225,7 +233,7 @@ class Agari(JsonSerializable):
         self.from_player = from_player
 
 
-class GameDecoder(JsonSerializable):
+class GameData(JsonSerializable):
     PLAYERS = ["n0", "n1", "n2", "n3"]
     HANDS = ["hai0", "hai1", "hai2", "hai3"]
 
@@ -253,14 +261,14 @@ class GameDecoder(JsonSerializable):
 
     def tag_UN(self, _, data):
         if "dan" in data:
-            names = [urllib_parse.unquote(data[name]) for name in GameDecoder.PLAYERS if data[name]]
-            ranks = GameDecoder.decode_list(data["dan"])
-            sexes = GameDecoder.decode_list(data["sx"], dtype=str)
-            rates = GameDecoder.decode_list(data["rate"], dtype=float)
+            names = [urllib_parse.unquote(data[name]) for name in GameData.PLAYERS if data[name]]
+            ranks = GameData.decode_list(data["dan"])
+            sexes = GameData.decode_list(data["sx"], dtype=str)
+            rates = GameData.decode_list(data["rate"], dtype=float)
             for (name, rank, sex, rate) in zip(names, ranks, sexes, rates):
                 self.players.append(Player(name, rank, sex, rate, False))
         else:
-            for (player, name) in zip(self.players, GameDecoder.PLAYERS):
+            for (player, name) in zip(self.players, GameData.PLAYERS):
                 if name in data:
                     player.connected = True
 
@@ -268,11 +276,11 @@ class GameDecoder(JsonSerializable):
         self.players[int(data["who"])].connected = False
 
     def tag_INIT(self, _, data):
-        round_no, honba, rii_sticks, d0, d1, dora = GameDecoder.decode_list(data["seed"])
+        round_no, honba, rii_sticks, d0, d1, dora = GameData.decode_list(data["seed"])
 
         new_round = Round(
             int(data["oya"]),
-            [GameDecoder.decode_list(data[hand], Tile) for hand in GameDecoder.HANDS if hand in data and data[hand]],
+            [GameData.decode_list(data[hand], Tile) for hand in GameData.HANDS if hand in data and data[hand]],
             round_no,
             honba,
             rii_sticks
@@ -301,7 +309,7 @@ class GameDecoder(JsonSerializable):
         current_round.ryuukyoku = True
 
         deltas = data['sc'].split(',')
-        current_round.deltas = [int(deltas[x]) for x in range(1, 8, 2)]
+        current_round.score_changes = [int(deltas[x]) for x in range(1, 8, 2)]
 
         if 'owari' in data:
             temp = [[int, float][i % 2](j) for i, j in enumerate(data['owari'].split(","))]
@@ -312,7 +320,7 @@ class GameDecoder(JsonSerializable):
             current_round.ryuukyoku = data['type']
         if current_round.ryuukyoku is True or current_round.ryuukyoku == "nm":
             tenpai = current_round.ryuukyoku_tenpai = []
-            for index, attr_name in enumerate(GameDecoder.HANDS):
+            for index, attr_name in enumerate(GameData.HANDS):
                 if attr_name in data:
                     tenpai.append(index)
 
@@ -323,13 +331,13 @@ class GameDecoder(JsonSerializable):
         # self.round.agari.append(agari)
         agari_type = "RON" if data["fromWho"] != data["who"] else "TSUMO"
         agari_player = int(data["who"])
-        agari_fu, agari_points, limit = GameDecoder.decode_list(data["ten"])
+        agari_fu, agari_points, limit = GameData.decode_list(data["ten"])
         agari_from = int(data["fromWho"]) if agari_type == "RON" else None
 
         current_round.agari.append(Agari(agari_type, agari_player, agari_points, agari_from))
 
         deltas = data['sc'].split(',')
-        current_round.deltas = [int(deltas[x]) for x in range(1, 8, 2)]
+        current_round.score_changes = [int(deltas[x]) for x in range(1, 8, 2)]
 
         if 'owari' in data:
             temp = [[int, float][i % 2](j) for i, j in enumerate(data['owari'].split(","))]
@@ -343,7 +351,8 @@ class GameDecoder(JsonSerializable):
             current_round.riichi_players.append(player)
             current_round.riichi_turns.append(current_round.turns[player])
 
-            current_round.events.append(RiichiEvent(player))
+            # Player decision to rii always comes after
+            current_round.events.insert(-1, RiichiEvent(player))
 
     def default(self, tag, _):
         if tag[0] in "DEFG":
@@ -366,11 +375,11 @@ class GameDecoder(JsonSerializable):
         except OSError:
             events = XMLElementTree.fromstring(log)
 
-        tags = {key[4:]: getattr(GameDecoder, key) for key in GameDecoder.__dict__ if key.startswith("tag_")}
+        tags = {key[4:]: getattr(GameData, key) for key in GameData.__dict__ if key.startswith("tag_")}
 
         self.reset()
         for event in events:
-            tags.get(event.tag, GameDecoder.default)(self, event.tag, event.attrib)
+            tags.get(event.tag, GameData.default)(self, event.tag, event.attrib)
 
 
 def test(old_log, new_log):
