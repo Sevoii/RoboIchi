@@ -70,6 +70,9 @@ class Tile(JsonSerializable):
     def __lt__(self, other):
         return isinstance(other, Tile) and self.tile < other.tile
 
+    def is_aka(self):
+        return (self.tile == 4 or self.tile == 13 or self.tile == 22) and self.tile_num == 0
+
 
 class Player(JsonSerializable):
     def __init__(self, name: str, rank: str, sex: str, rate: int, connected: bool):
@@ -424,4 +427,5 @@ def test(old_log, new_log):
 
 
 if __name__ == '__main__':
-    test("log.json", "log1.json")
+    # test("log.json", "log1.json")
+    print(Tile(31 << 2).serialize(readable=True))
