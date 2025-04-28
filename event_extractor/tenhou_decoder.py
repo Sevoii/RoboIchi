@@ -227,6 +227,25 @@ class RiichiEvent(Event):
         self.player = player
 
 
+class RonEvent(Event):
+    def __init__(self, winning_players: list[int], from_player: int):
+        super().__init__("ron")
+        self.winning_players = winning_players
+        self.from_player = from_player
+
+
+class TsumoEvent(Event):
+    def __init__(self, player: int):
+        super().__init__("tsumo")
+        self.player = player
+
+
+class RyuuyokuEvent(Event):
+    def __init__(self, rk_type):
+        super().__init__("ryuuyoku")
+        self.rk_type = "s" if isinstance(rk_type, bool) else rk_type
+
+
 class Agari(JsonSerializable):
     # There is more data but this was not needed for my usecase, so this is just here for posterity sake
     def __init__(self, win_type: str, winning_player: int, points: int, from_player: int):
@@ -289,6 +308,7 @@ class GameData(JsonSerializable):
             rii_sticks
         )
 
+        self._finish_round()
         self.rounds.append(new_round)
         new_round.events.append(DoraIndicatorEvent(Tile(dora)))
 
@@ -383,6 +403,22 @@ class GameData(JsonSerializable):
         self.reset()
         for event in events:
             tags.get(event.tag, GameData.default)(self, event.tag, event.attrib)
+
+        self._finish_round()
+
+    def _finish_round(self):
+        if not self.rounds:
+            return
+
+        current_round = self.rounds[-1]
+
+        if current_round.ryuukyoku:
+            current_round.events.append(RyuuyokuEvent(current_round.ryuukyoku))
+        elif current_round.agari[0].win_type == "RON":  # Ron
+            current_round.events.append(
+                RonEvent([i.winning_player for i in current_round.agari], current_round.agari[0].from_player))
+        else:  # Tsumo
+            current_round.events.append(TsumoEvent(current_round.agari[0].winning_player))
 
 
 def test(old_log, new_log):

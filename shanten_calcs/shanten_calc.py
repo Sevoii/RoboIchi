@@ -142,13 +142,16 @@ def calc_kokushi(tiles: list[int]):
     return 14 - kinds - (pairs > 0) - 1
 
 
-def calc_all(tiles: list[int], len_div3: int):
+def calc_all(tiles: list[int], len_div3: int = None):
     """
     Calculates the shanten of the hand no matter what we're going for
     :param tiles: Full Array of tiles
     :param len_div3: ???
     :return: Hand Shanten
     """
+    if len_div3 is None:
+        len_div3 = len(tiles) // 3
+
     shanten = calc_normal(tiles, len_div3)
 
     if len_div3 >= 4:
