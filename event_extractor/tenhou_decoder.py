@@ -5,6 +5,7 @@
 import urllib.parse as urllib_parse
 from typing import TextIO
 import xml.etree.ElementTree as XMLElementTree
+import bz2
 
 
 class JsonSerializable:
@@ -58,6 +59,9 @@ class Tile(JsonSerializable):
         self.tile = i >> 2
         self.tile_num = i & 0x3
 
+    def __repr__(self):
+        return self.serialize(readable=True)
+
     def serialize(self, *args, **kwargs):
         if kwargs.get("readable"):
             return Tile._TILES[self.tile] + str(self.tile_num)
@@ -72,6 +76,9 @@ class Tile(JsonSerializable):
 
     def is_aka(self):
         return (self.tile == 4 or self.tile == 13 or self.tile == 22) and self.tile_num == 0
+
+    def get_t37_idx(self):
+        return self.tile + self.is_aka() + (self.tile > 4) + (self.tile > 13) + (self.tile > 22)
 
 
 class Player(JsonSerializable):
@@ -460,6 +467,16 @@ def test(old_log, new_log):
                 k += 1
 
         assert j == len(old_round["events"]) and k == len(new_round["events"])
+
+
+def extract_bz2(hex_str: str):
+    if hex_str.startswith("0x"):
+        hex_str = hex_str[2:]
+
+    compressed = bytes.fromhex(hex_str)
+    decompressed = bz2.decompress(compressed).decode()
+
+    return GameData(decompressed)
 
 
 if __name__ == '__main__':
