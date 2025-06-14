@@ -30,11 +30,14 @@ class Meld(tenhou_decoder.JsonSerializable):
 
 
 class PlayerState(tenhou_decoder.JsonSerializable):
-    def __init__(self, starting_hand: list[tenhou_decoder.Tile], is_oya: bool, global_score: int):
+    def __init__(self, starting_hand: list[tenhou_decoder.Tile], is_oya: bool, global_score: int,
+                 update_winning: bool = False):
         self._last_action = None
-        self._winnings_tiles = []
+        self._winning_tiles = []
         self._furiten = 0  # furiten types: 0 = none, 1 = temp, 2 = perm
         self._calls_made = False
+        self._num_discards = 0
+        self._update_winning = update_winning
 
         self.closed_hand = sorted(starting_hand)
         self.melds: list[Meld] = []
@@ -51,6 +54,8 @@ class PlayerState(tenhou_decoder.JsonSerializable):
         self._last_action = "draw"
 
     def discard_tile(self, tile: tenhou_decoder.Tile):
+        self._num_discards += 1
+
         # Tile should always be in current hand
         idx = self.closed_hand.index(tile)
         self.closed_hand.pop(idx)
@@ -81,30 +86,31 @@ class PlayerState(tenhou_decoder.JsonSerializable):
                 removed_tiles += 1
 
         match meld.call_type:
-            case "chi":
+            case tenhou_decoder.CallTypes.CHII:
                 assert removed_tiles == 2
                 self.melds.append(Meld(1, meld.tiles))
                 self.hand_is_open = True
-            case "pon":
+            case tenhou_decoder.CallTypes.PON:
                 assert removed_tiles == 2
                 self.melds.append(Meld(2, meld.tiles))
                 self.hand_is_open = True
-            case "shouminkan":
+            case tenhou_decoder.CallTypes.SHOUMINKAN:
                 assert removed_tiles == 1
                 # Find the pon
                 for i in range(len(self.melds)):
-                    if self.melds[i].tiles[0].tile == meld.tiles[0].tile_num:
+                    if self.melds[i].tiles[0].tile == meld.tiles[0].tile:
                         self.melds[i] = Meld(3, meld.tiles)
                         break
                 else:
-                    raise Exception("Could not find shouminkan call group")
+                    raise Exception(
+                        f"Could not find shouminkan call group: {meld.serialize(readable=True)}, {[i.serialize(readable=True) for i in self.melds]}")
                 self.hand_is_open = True
-            case "daiminkan":
+            case tenhou_decoder.CallTypes.DAIMINKAN:
                 assert removed_tiles == 3
                 self.melds.append(Meld(3, meld.tiles))
                 self.hand_is_open = True
                 self.update_winning_tiles()
-            case "ankan":
+            case tenhou_decoder.CallTypes.ANKAN:
                 assert removed_tiles == 4
                 self.melds.append(Meld(3, meld.tiles))
 
@@ -115,13 +121,13 @@ class PlayerState(tenhou_decoder.JsonSerializable):
             self._last_action = "discard"
 
     def update_winning_tiles(self):
-        # self._winnings_tiles = shanten_calcs.get_hand_waits(
-        #     shanten_calcs.convert_t14_to_full([i.tile for i in self.closed_hand]))
-        pass
+        if self._update_winning:
+            self._winnings_tiles = shanten_calcs.get_hand_waits(
+                shanten_calcs.convert_t14_to_full([i.tile for i in self.closed_hand]))
 
 
 class RoundState(tenhou_decoder.JsonSerializable):
-    def __init__(self, round_data: tenhou_decoder.Round, global_scores: list[int]):
+    def __init__(self, round_data: tenhou_decoder.Round, global_scores: list[int], update_winnings: bool = False):
         self.round_no = round_data.round_no.round_no
         self.honba_count = round_data.honba_count
         self.rii_sticks = round_data.rii_sticks
@@ -129,8 +135,9 @@ class RoundState(tenhou_decoder.JsonSerializable):
         self.tiles_left = 70
         self.dora_indicators: list[tenhou_decoder.Tile] = []
 
-        self.players = [PlayerState(round_data.starting_hands[i], i == round_data.oya, global_scores[i]) for i in
-                        range(4)]
+        self.players = [
+            PlayerState(round_data.starting_hands[i], i == round_data.oya, global_scores[i], update_winnings) for i in
+            range(4)]
         self._last_discard = None
         self._tiles_called = False
 
@@ -155,7 +162,8 @@ class RoundState(tenhou_decoder.JsonSerializable):
         for i in self.players:
             i.break_ippatsu()
 
-        self._last_discard.called = True
+        if not isinstance(ev.meld, tenhou_decoder.KanMeld) or ev.meld.call_type != tenhou_decoder.CallTypes.ANKAN:
+            self._last_discard.called = True
         self._tiles_called = True
 
     def did_someone_call(self):
@@ -163,10 +171,11 @@ class RoundState(tenhou_decoder.JsonSerializable):
 
 
 class GameState:
-    def __init__(self, data: tenhou_decoder.GameData):
+    def __init__(self, data: tenhou_decoder.GameData, update_winning=False):
         self.data = data
         self.rounds = data.rounds
         self.current_round: RoundState | None = None
+        self.update_winning = update_winning
 
         # Everyone starts off with 25k
         self.scores = [250 for _ in range(4)]
@@ -179,11 +188,11 @@ class GameState:
             self.scores = [self.rounds[self.round_no].score_changes[i] + j for i, j in enumerate(self.scores)]
 
         self.round_no += 1
-        if self.round_no > len(self.data.rounds):
+        if self.round_no >= len(self.data.rounds):
             self.current_round = None
             return
 
-        self.current_round = RoundState(self.data.rounds[self.round_no], self.scores)
+        self.current_round = RoundState(self.data.rounds[self.round_no], self.scores, self.update_winning)
         self.event_no = 0
 
     def get_next_event(self):
@@ -205,6 +214,8 @@ class GameState:
                     self.current_round.discard_tile(ev)
                 case tenhou_decoder.RiichiEvent:
                     self.current_round.riichi(ev)
+                case tenhou_decoder.RyuuyokuEvent | tenhou_decoder.RonEvent | tenhou_decoder.TsumoEvent:
+                    pass
                 case _:
                     raise Exception(f"Event {ev.event_name} is not handled")
 

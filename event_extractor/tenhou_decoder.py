@@ -2,6 +2,7 @@
 #
 # Source:
 #  * https://github.com/ApplySci/tenhou-log/blob/master/TenhouDecoder.py
+import enum
 import urllib.parse as urllib_parse
 from typing import TextIO
 import xml.etree.ElementTree as XMLElementTree
@@ -27,6 +28,8 @@ class JsonSerializable:
     def _serialize(obj, *args, **kwargs):
         if isinstance(obj, JsonSerializable.PRIMITIVES):
             return obj
+        elif isinstance(obj, enum.Enum):
+            return obj.value
         elif isinstance(obj, (list, tuple)):
             return JsonSerializable._serialize_iter(obj, *args, **kwargs)
         else:
@@ -133,10 +136,19 @@ class Round(JsonSerializable):
         self.score_changes = []  # Score changes, divided by 100
 
 
+class CallTypes(enum.Enum):
+    ANKAN = "ANKAN"
+    DAIMINKAN = "DAIMINKAN"
+    SHOUMINKAN = "SHOUMINKAN"  # KaKan
+    CHII = "CHII"
+    PON = "PON"
+    NUKI = "NUKI"  # Pei
+
+
 class ChiiMeld(JsonSerializable):
     def __init__(self, data: int):
         self.relative_player = data & 0x3
-        self.call_type = "chi"
+        self.call_type = CallTypes.CHII
         t0, t1, t2 = (data >> 3) & 0x3, (data >> 5) & 0x3, (data >> 7) & 0x3
         base_and_called = data >> 10
         self.chii_type = data % 3  # Ex 456 -> 0: 4 chii, 1: 5 chii, 2: 6 chii
@@ -156,11 +168,11 @@ class PonMeld(JsonSerializable):
         base = base_and_called // 3
 
         if data & 0x8:
-            self.call_type = "pon"
+            self.call_type = CallTypes.PON
             self.tiles = (Tile(t0 + 4 * base), Tile(t1 + 4 * base), Tile(t2 + 4 * base))
         else:
             # Added Kan
-            self.call_type = "shouminkan"
+            self.call_type = CallTypes.SHOUMINKAN
             self.tiles = (Tile(t0 + 4 * base), Tile(t1 + 4 * base), Tile(t2 + 4 * base), Tile(t4 + 4 * base))
 
 
@@ -172,10 +184,10 @@ class KanMeld(JsonSerializable):
         # relative_player = 0 if referring to ourselves
         if self.relative_player:
             self.calling_player = base_and_called % 4
-            self.call_type = "daiminkan"
+            self.call_type = CallTypes.DAIMINKAN
         else:
             self.calling_player = self.relative_player
-            self.call_type = "ankan"
+            self.call_type = CallTypes.ANKAN
 
         base = base_and_called // 4
         self.tiles = (Tile(4 * base), Tile(1 + 4 * base), Tile(2 + 4 * base), Tile(3 + 4 * base))
@@ -185,7 +197,7 @@ class KanMeld(JsonSerializable):
 class NukiMeld(JsonSerializable):
     def __init__(self, data: int):
         self.from_player = data & 0x3
-        self.call_type = "nuki"
+        self.call_type = CallTypes.NUKI
         self.tiles = (Tile(data >> 0),)
 
 

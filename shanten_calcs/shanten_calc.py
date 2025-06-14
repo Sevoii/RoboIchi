@@ -31,8 +31,8 @@ def _read_table(file_loc: str) -> list[list[int]]:
 # _JIHAI_TABLE = _read_table("data/shanten_jihai.bin.gz")  # Length: 78032
 # _SUHAI_TABLE = _read_table("data/shanten_suhai.bin.gz")  # Length: 1940777
 
-with open(__file__ + "/../data/jihai_table.pkl", "rb") as f:
-    _JIHAI_TABLE = pickle.load(f)
+# with open(__file__ + "/../data/jihai_table.pkl", "rb") as f:
+#     _JIHAI_TABLE = pickle.load(f)
 with open(__file__ + "/../data/suhai_table.pkl", "rb") as f:
     _SUHAI_TABLE = pickle.load(f)
 
