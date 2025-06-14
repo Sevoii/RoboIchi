@@ -155,6 +155,16 @@ def main(games_loc: str, haipai_loc: str = None):
             decompressed = bz2.decompress(content).decode()
             for haipai in extract_game_haipais_v1(tenhou_decoder.GameData(decompressed)):
                 cur_write.execute("INSERT INTO haipai VALUES(?, ?)", (row_id, compress_arr(haipai)))
+    #
+    # if not randomize:
+    #     return
+    #
+    # with sqlite3.connect(haipai_loc) as con:
+    #     cur = con.cursor()
+    #
+    #     cur.execute("CREATE TABLE temp (row INTEGER PRIMARY KEY AUTOINCREMENT, log_id INT, board_state BLOB)")
+    #     cur.execute("INSERT INTO temp (log_id, board_state) SELECT log_id, board_state FROM haipai")
+    #     cur.execute("DROP TABLE haipai")
 
 
 if __name__ == "__main__":
