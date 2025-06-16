@@ -9,4 +9,5 @@ log.json
 log1.json
 
 # DB files
-db/*
+#db/*
+db/log2.json
