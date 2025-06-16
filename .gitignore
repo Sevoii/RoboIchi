@@ -11,3 +11,5 @@ log1.json
 # DB files
 #db/*
 db/log2.json
+db/2021.db
+db/haipai.db
