@@ -29,7 +29,10 @@ def extract_riis(game_data: tenhou_decoder.GameData):
                 winning_tiles = shanten_calcs.get_hand_waits(
                     shanten_calcs.convert_t14_to_full([i.tile for i in player.closed_hand]))
 
-                riis.append([player._num_discards, discard_ev.tile.tile, winning_tiles])
+                if discard_ev.tile.is_aka():
+                    # print("here")
+                    riis.append([player._num_discards, discard_ev.tile.tile, winning_tiles])
+                # riis.append([player._num_discards, discard_ev.tile.tile, winning_tiles])
 
         game_state.next_round()
 
@@ -81,4 +84,4 @@ def main(games_loc: str, rii_loc: str = None):
 
 
 if __name__ == "__main__":
-    main(__file__ + "/../../db/2021.db")
+    main(__file__ + "/../../db/2021.db", __file__ + "/../../db/akarii.db")
