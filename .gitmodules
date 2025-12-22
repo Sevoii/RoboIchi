@@ -1,3 +1,3 @@
-[submodule "db/houou-logs"]
-	path = db/houou-logs
-	url = https://github.com/Apricot-S/houou-logs.git
+[submodule "db/phoenix-logs"]
+	path = db/phoenix-logs
+	url = https://github.com/ApplySci/phoenix-logs.git
