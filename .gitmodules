@@ -1,3 +1,0 @@
-[submodule "db/phoenix-logs"]
-	path = db/phoenix-logs
-	url = https://github.com/ApplySci/phoenix-logs.git
