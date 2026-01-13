@@ -13,3 +13,7 @@ log1.json
 db/log2.json
 db/2021.db
 db/haipai.db
+
+mjlog2json/target
+mjlog2json/Cargo.lock
+*-checkpoint.ipynb
