@@ -1,4 +1,3 @@
-mod converter;
 mod json_calc;
 mod json_exporter;
 mod json_model;
