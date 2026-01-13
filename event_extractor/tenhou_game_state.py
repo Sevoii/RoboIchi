@@ -149,10 +149,10 @@ class RoundState(tenhou_decoder.JsonSerializable):
         self.players[ev.player].discard_tile(ev.tile)
         self._last_discard = self.players[ev.player].discard_pool[-1]
 
-    def riichi(self, ev: tenhou_decoder.DiscardTileEvent):
+    def riichi(self, ev: tenhou_decoder.RiichiEvent):
         self.players[ev.player].riichi()
 
-    def dora(self, ev: tenhou_decoder.DiscardTileEvent):
+    def dora(self, ev: tenhou_decoder.DoraIndicatorEvent):
         # TODO - make this just get the dora instead
         self.dora_indicators.append(ev.tile)
 
@@ -203,21 +203,24 @@ class GameState:
     def process_event(self):
         ev = self.get_next_event()
         if ev is not None:
-            match type(ev):
-                case tenhou_decoder.CallTileEvent:
-                    self.current_round.call(ev)
-                case tenhou_decoder.DoraIndicatorEvent:
-                    self.current_round.dora(ev)
-                case tenhou_decoder.DrawTileEvent:
-                    self.current_round.draw_tile(ev)
-                case tenhou_decoder.DiscardTileEvent:
-                    self.current_round.discard_tile(ev)
-                case tenhou_decoder.RiichiEvent:
-                    self.current_round.riichi(ev)
-                case tenhou_decoder.RyuuyokuEvent | tenhou_decoder.RonEvent | tenhou_decoder.TsumoEvent:
-                    pass
-                case _:
-                    raise Exception(f"Event {ev.event_name} is not handled")
+            if isinstance(ev, tenhou_decoder.CallTileEvent):
+                self.current_round.call(ev)
+            elif isinstance(ev, tenhou_decoder.DoraIndicatorEvent):
+                self.current_round.dora(ev)
+            elif isinstance(ev, tenhou_decoder.DrawTileEvent):
+                self.current_round.draw_tile(ev)
+            elif isinstance(ev, tenhou_decoder.DiscardTileEvent):
+                self.current_round.discard_tile(ev)
+            elif isinstance(ev, tenhou_decoder.RiichiEvent):
+                self.current_round.riichi(ev)
+            elif isinstance(ev, (
+                    tenhou_decoder.RyuuyokuEvent,
+                    tenhou_decoder.RonEvent,
+                    tenhou_decoder.TsumoEvent,
+            )):
+                pass
+            else:
+                raise Exception(f"Event {ev.event_name} is not handled")
 
         self.event_no += 1
 
@@ -267,7 +270,7 @@ class GameState:
             # Discard Pool
             temp = []
             for j in self.current_round.players[i].discard_pool:
-                temp.append(((j.tile.i << 3) + (j.called << 2) + (j.riichi_tile) << 1 + (j.called)))
+                temp.append(((j.tile.i << 3) + (j.called << 2) + (j.riichi_tile) << 1 + (j.discard_type)))
             arr += pad_0(temp, 28)
 
         return arr
