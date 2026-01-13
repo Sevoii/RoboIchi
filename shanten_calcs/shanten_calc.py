@@ -150,7 +150,7 @@ def calc_all(tiles: list[int], len_div3: int = None):
     :return: Hand Shanten
     """
     if len_div3 is None:
-        len_div3 = len(tiles) // 3
+        len_div3 = sum(tiles) // 3
 
     shanten = calc_normal(tiles, len_div3)
 
