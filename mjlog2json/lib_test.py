@@ -6,4 +6,8 @@ h = "425A68393141592653599B7A5FD600173D9F80520FFFE73FFFFFF03FFFFFF0601F7F3C1663C
 compressed = bytes.fromhex(h)
 decompressed = bz2.decompress(compressed).decode()
 
-print(mjlog2json.convert_log(decompressed, "na"))
+tenhou = mjlog2json.convert_xml_to_tenhou(decompressed)
+
+print(tenhou)
+print(mjlog2json.convert_tenhou_to_mjai(tenhou))
+print(mjlog2json.convert_xml_to_mjai(decompressed))
