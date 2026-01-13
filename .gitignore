@@ -12,6 +12,7 @@ log1.json
 #db/*
 db/log2.json
 db/2021.db
+db/2021-backup.db
 db/haipai.db
 
 mjlog2json/target
