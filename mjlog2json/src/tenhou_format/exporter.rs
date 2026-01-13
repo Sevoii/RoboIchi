@@ -1,5 +1,5 @@
-use crate::json_model::*;
-use crate::json_parser::*;
+use crate::tenhou_format::model::*;
+use crate::tenhou_format::parser::*;
 use serde_json::{json, Value};
 use std::iter::once;
 

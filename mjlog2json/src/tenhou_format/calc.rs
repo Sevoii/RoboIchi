@@ -1,4 +1,4 @@
-use crate::json_score::*;
+use crate::tenhou_format::score::*;
 
 fn calc_base_points(fu: u8, han: u8) -> i32 {
     (fu as i32) << (han+2)

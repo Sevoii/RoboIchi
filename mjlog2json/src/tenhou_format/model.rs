@@ -1,4 +1,4 @@
-use crate::json_score::*;
+use crate::tenhou_format::score::*;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::fmt;

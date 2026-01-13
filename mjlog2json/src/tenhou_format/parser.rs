@@ -1,5 +1,5 @@
-use crate::json_model::*;
-use crate::json_score::*;
+use crate::tenhou_format::model::*;
+use crate::tenhou_format::score::*;
 use serde_json::value::Index;
 use serde_json::Value;
 use std::str::FromStr;

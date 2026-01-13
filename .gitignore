@@ -17,4 +17,8 @@ db/haipai.db
 
 mjlog2json/target
 mjlog2json/Cargo.lock
+
+libriichi/target
+libriichi/Cargo.lock
+
 *-checkpoint.ipynb

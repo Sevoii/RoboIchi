@@ -1,4 +1,4 @@
-use crate::xml_model::*;
+use crate::xml_format::model::*;
 use num_traits::FromPrimitive;
 use percent_encoding::percent_decode_str;
 use quick_xml::events::{BytesStart, Event};

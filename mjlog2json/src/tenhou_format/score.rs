@@ -192,7 +192,7 @@ fn parse_exact_ranked_score(s: &str) -> Option<RankedScore> {
 
 #[cfg(test)]
 mod tests {
-    use crate::json_score::*;
+    use crate::tenhou_format::score::*;
 
     #[test]
     fn test_parse_ron() {

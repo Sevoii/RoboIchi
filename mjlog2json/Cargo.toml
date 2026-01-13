@@ -20,3 +20,8 @@ serde_derive = "1.0.219"
 thiserror = "2.0.11"
 pyo3 = "0.27.2"
 serde_json = { version = "1.0.139", features = ["preserve_order"] }
+serde_tuple = "1"
+serde_repr = "0.1"
+num_enum = "0.7"
+ahash = "0.8"
+serde_with = "3"

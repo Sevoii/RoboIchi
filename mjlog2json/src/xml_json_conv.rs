@@ -1,9 +1,9 @@
-use crate::json_calc::*;
-use crate::json_model::*;
-use crate::json_parser::*;
-use crate::json_score::*;
-use crate::xml_model::*;
-use crate::xml_parser::MjlogError;
+use crate::tenhou_format::calc::*;
+use crate::tenhou_format::model::*;
+use crate::tenhou_format::parser::*;
+use crate::tenhou_format::score::*;
+use crate::xml_format::model::*;
+use crate::xml_format::parser::MjlogError;
 use std::iter::once;
 use thiserror::Error;
 
@@ -205,89 +205,89 @@ fn conv_round_setting(actions: &[Action]) -> ConvResult<RoundSettings> {
     })
 }
 
-fn conv_yaku(x: crate::xml_model::Yaku) -> crate::json_model::Yaku {
+fn conv_yaku(x: crate::xml_format::model::Yaku) -> crate::tenhou_format::model::Yaku {
     match x {
-        crate::xml_model::Yaku::MenzenTsumo => crate::json_model::Yaku::MenzenTsumo,
-        crate::xml_model::Yaku::Riichi => crate::json_model::Yaku::Riichi,
-        crate::xml_model::Yaku::Ippatsu => crate::json_model::Yaku::Ippatsu,
-        crate::xml_model::Yaku::Chankan => crate::json_model::Yaku::Chankan,
-        crate::xml_model::Yaku::Rinshankaihou => crate::json_model::Yaku::Rinshankaihou,
-        crate::xml_model::Yaku::HaiteiTsumo => crate::json_model::Yaku::HaiteiTsumo,
-        crate::xml_model::Yaku::HouteiRon => crate::json_model::Yaku::HouteiRon,
-        crate::xml_model::Yaku::Pinfu => crate::json_model::Yaku::Pinfu,
-        crate::xml_model::Yaku::Tanyao => crate::json_model::Yaku::Tanyao,
-        crate::xml_model::Yaku::Iipeikou => crate::json_model::Yaku::Iipeikou,
-        crate::xml_model::Yaku::PlayerWindTon => crate::json_model::Yaku::PlayerWindTon,
-        crate::xml_model::Yaku::PlayerWindNan => crate::json_model::Yaku::PlayerWindNan,
-        crate::xml_model::Yaku::PlayerWindSha => crate::json_model::Yaku::PlayerWindSha,
-        crate::xml_model::Yaku::PlayerWindPei => crate::json_model::Yaku::PlayerWindPei,
-        crate::xml_model::Yaku::FieldWindTon => crate::json_model::Yaku::FieldWindTon,
-        crate::xml_model::Yaku::FieldWindNan => crate::json_model::Yaku::FieldWindNan,
-        crate::xml_model::Yaku::FieldWindSha => crate::json_model::Yaku::FieldWindSha,
-        crate::xml_model::Yaku::FieldWindPei => crate::json_model::Yaku::FieldWindPei,
-        crate::xml_model::Yaku::YakuhaiHaku => crate::json_model::Yaku::YakuhaiHaku,
-        crate::xml_model::Yaku::YakuhaiHatsu => crate::json_model::Yaku::YakuhaiHatsu,
-        crate::xml_model::Yaku::YakuhaiChun => crate::json_model::Yaku::YakuhaiChun,
-        crate::xml_model::Yaku::DoubleRiichi => crate::json_model::Yaku::DoubleRiichi,
-        crate::xml_model::Yaku::Chiitoitsu => crate::json_model::Yaku::Chiitoitsu,
-        crate::xml_model::Yaku::Chanta => crate::json_model::Yaku::Chanta,
-        crate::xml_model::Yaku::Ikkitsuukan => crate::json_model::Yaku::Ikkitsuukan,
-        crate::xml_model::Yaku::SansyokuDoujun => crate::json_model::Yaku::SansyokuDoujun,
-        crate::xml_model::Yaku::SanshokuDoukou => crate::json_model::Yaku::SanshokuDoukou,
-        crate::xml_model::Yaku::Sankantsu => crate::json_model::Yaku::Sankantsu,
-        crate::xml_model::Yaku::Toitoi => crate::json_model::Yaku::Toitoi,
-        crate::xml_model::Yaku::Sanannkou => crate::json_model::Yaku::Sanannkou,
-        crate::xml_model::Yaku::Shousangen => crate::json_model::Yaku::Shousangen,
-        crate::xml_model::Yaku::Honroutou => crate::json_model::Yaku::Honroutou,
-        crate::xml_model::Yaku::Ryanpeikou => crate::json_model::Yaku::Ryanpeikou,
-        crate::xml_model::Yaku::Junchan => crate::json_model::Yaku::Junchan,
-        crate::xml_model::Yaku::Honiisou => crate::json_model::Yaku::Honiisou,
-        crate::xml_model::Yaku::Chiniisou => crate::json_model::Yaku::Chiniisou,
-        crate::xml_model::Yaku::Renhou => crate::json_model::Yaku::Renhou,
-        crate::xml_model::Yaku::Tenhou => crate::json_model::Yaku::Tenhou,
-        crate::xml_model::Yaku::Chiihou => crate::json_model::Yaku::Chiihou,
-        crate::xml_model::Yaku::Daisangen => crate::json_model::Yaku::Daisangen,
-        crate::xml_model::Yaku::Suuankou => crate::json_model::Yaku::Suuankou,
-        crate::xml_model::Yaku::SuuankouTanki => crate::json_model::Yaku::SuuankouTanki,
-        crate::xml_model::Yaku::Tsuuiisou => crate::json_model::Yaku::Tsuuiisou,
-        crate::xml_model::Yaku::Ryuuiisou => crate::json_model::Yaku::Ryuuiisou,
-        crate::xml_model::Yaku::Chinroutou => crate::json_model::Yaku::Chinroutou,
-        crate::xml_model::Yaku::Tyuurenpoutou => crate::json_model::Yaku::Tyuurenpoutou,
-        crate::xml_model::Yaku::Tyuurenpoutou9 => crate::json_model::Yaku::Tyuurenpoutou9,
-        crate::xml_model::Yaku::Kokushimusou => crate::json_model::Yaku::Kokushimusou,
-        crate::xml_model::Yaku::Kokushimusou13 => crate::json_model::Yaku::Kokushimusou13,
-        crate::xml_model::Yaku::Daisuushii => crate::json_model::Yaku::Daisuushii,
-        crate::xml_model::Yaku::Syousuushii => crate::json_model::Yaku::Syousuushii,
-        crate::xml_model::Yaku::Suukantsu => crate::json_model::Yaku::Suukantsu,
-        crate::xml_model::Yaku::Dora => crate::json_model::Yaku::Dora,
-        crate::xml_model::Yaku::UraDora => crate::json_model::Yaku::UraDora,
-        crate::xml_model::Yaku::AkaDora => crate::json_model::Yaku::AkaDora,
+        crate::xml_format::model::Yaku::MenzenTsumo => crate::tenhou_format::model::Yaku::MenzenTsumo,
+        crate::xml_format::model::Yaku::Riichi => crate::tenhou_format::model::Yaku::Riichi,
+        crate::xml_format::model::Yaku::Ippatsu => crate::tenhou_format::model::Yaku::Ippatsu,
+        crate::xml_format::model::Yaku::Chankan => crate::tenhou_format::model::Yaku::Chankan,
+        crate::xml_format::model::Yaku::Rinshankaihou => crate::tenhou_format::model::Yaku::Rinshankaihou,
+        crate::xml_format::model::Yaku::HaiteiTsumo => crate::tenhou_format::model::Yaku::HaiteiTsumo,
+        crate::xml_format::model::Yaku::HouteiRon => crate::tenhou_format::model::Yaku::HouteiRon,
+        crate::xml_format::model::Yaku::Pinfu => crate::tenhou_format::model::Yaku::Pinfu,
+        crate::xml_format::model::Yaku::Tanyao => crate::tenhou_format::model::Yaku::Tanyao,
+        crate::xml_format::model::Yaku::Iipeikou => crate::tenhou_format::model::Yaku::Iipeikou,
+        crate::xml_format::model::Yaku::PlayerWindTon => crate::tenhou_format::model::Yaku::PlayerWindTon,
+        crate::xml_format::model::Yaku::PlayerWindNan => crate::tenhou_format::model::Yaku::PlayerWindNan,
+        crate::xml_format::model::Yaku::PlayerWindSha => crate::tenhou_format::model::Yaku::PlayerWindSha,
+        crate::xml_format::model::Yaku::PlayerWindPei => crate::tenhou_format::model::Yaku::PlayerWindPei,
+        crate::xml_format::model::Yaku::FieldWindTon => crate::tenhou_format::model::Yaku::FieldWindTon,
+        crate::xml_format::model::Yaku::FieldWindNan => crate::tenhou_format::model::Yaku::FieldWindNan,
+        crate::xml_format::model::Yaku::FieldWindSha => crate::tenhou_format::model::Yaku::FieldWindSha,
+        crate::xml_format::model::Yaku::FieldWindPei => crate::tenhou_format::model::Yaku::FieldWindPei,
+        crate::xml_format::model::Yaku::YakuhaiHaku => crate::tenhou_format::model::Yaku::YakuhaiHaku,
+        crate::xml_format::model::Yaku::YakuhaiHatsu => crate::tenhou_format::model::Yaku::YakuhaiHatsu,
+        crate::xml_format::model::Yaku::YakuhaiChun => crate::tenhou_format::model::Yaku::YakuhaiChun,
+        crate::xml_format::model::Yaku::DoubleRiichi => crate::tenhou_format::model::Yaku::DoubleRiichi,
+        crate::xml_format::model::Yaku::Chiitoitsu => crate::tenhou_format::model::Yaku::Chiitoitsu,
+        crate::xml_format::model::Yaku::Chanta => crate::tenhou_format::model::Yaku::Chanta,
+        crate::xml_format::model::Yaku::Ikkitsuukan => crate::tenhou_format::model::Yaku::Ikkitsuukan,
+        crate::xml_format::model::Yaku::SansyokuDoujun => crate::tenhou_format::model::Yaku::SansyokuDoujun,
+        crate::xml_format::model::Yaku::SanshokuDoukou => crate::tenhou_format::model::Yaku::SanshokuDoukou,
+        crate::xml_format::model::Yaku::Sankantsu => crate::tenhou_format::model::Yaku::Sankantsu,
+        crate::xml_format::model::Yaku::Toitoi => crate::tenhou_format::model::Yaku::Toitoi,
+        crate::xml_format::model::Yaku::Sanannkou => crate::tenhou_format::model::Yaku::Sanannkou,
+        crate::xml_format::model::Yaku::Shousangen => crate::tenhou_format::model::Yaku::Shousangen,
+        crate::xml_format::model::Yaku::Honroutou => crate::tenhou_format::model::Yaku::Honroutou,
+        crate::xml_format::model::Yaku::Ryanpeikou => crate::tenhou_format::model::Yaku::Ryanpeikou,
+        crate::xml_format::model::Yaku::Junchan => crate::tenhou_format::model::Yaku::Junchan,
+        crate::xml_format::model::Yaku::Honiisou => crate::tenhou_format::model::Yaku::Honiisou,
+        crate::xml_format::model::Yaku::Chiniisou => crate::tenhou_format::model::Yaku::Chiniisou,
+        crate::xml_format::model::Yaku::Renhou => crate::tenhou_format::model::Yaku::Renhou,
+        crate::xml_format::model::Yaku::Tenhou => crate::tenhou_format::model::Yaku::Tenhou,
+        crate::xml_format::model::Yaku::Chiihou => crate::tenhou_format::model::Yaku::Chiihou,
+        crate::xml_format::model::Yaku::Daisangen => crate::tenhou_format::model::Yaku::Daisangen,
+        crate::xml_format::model::Yaku::Suuankou => crate::tenhou_format::model::Yaku::Suuankou,
+        crate::xml_format::model::Yaku::SuuankouTanki => crate::tenhou_format::model::Yaku::SuuankouTanki,
+        crate::xml_format::model::Yaku::Tsuuiisou => crate::tenhou_format::model::Yaku::Tsuuiisou,
+        crate::xml_format::model::Yaku::Ryuuiisou => crate::tenhou_format::model::Yaku::Ryuuiisou,
+        crate::xml_format::model::Yaku::Chinroutou => crate::tenhou_format::model::Yaku::Chinroutou,
+        crate::xml_format::model::Yaku::Tyuurenpoutou => crate::tenhou_format::model::Yaku::Tyuurenpoutou,
+        crate::xml_format::model::Yaku::Tyuurenpoutou9 => crate::tenhou_format::model::Yaku::Tyuurenpoutou9,
+        crate::xml_format::model::Yaku::Kokushimusou => crate::tenhou_format::model::Yaku::Kokushimusou,
+        crate::xml_format::model::Yaku::Kokushimusou13 => crate::tenhou_format::model::Yaku::Kokushimusou13,
+        crate::xml_format::model::Yaku::Daisuushii => crate::tenhou_format::model::Yaku::Daisuushii,
+        crate::xml_format::model::Yaku::Syousuushii => crate::tenhou_format::model::Yaku::Syousuushii,
+        crate::xml_format::model::Yaku::Suukantsu => crate::tenhou_format::model::Yaku::Suukantsu,
+        crate::xml_format::model::Yaku::Dora => crate::tenhou_format::model::Yaku::Dora,
+        crate::xml_format::model::Yaku::UraDora => crate::tenhou_format::model::Yaku::UraDora,
+        crate::xml_format::model::Yaku::AkaDora => crate::tenhou_format::model::Yaku::AkaDora,
     }
 }
 
 fn conv_extra_ryuukyoku_reason(
-    x: &Option<crate::xml_model::ExtraRyuukyokuReason>,
-) -> crate::json_model::ExtraRyuukyokuReason {
+    x: &Option<crate::xml_format::model::ExtraRyuukyokuReason>,
+) -> crate::tenhou_format::model::ExtraRyuukyokuReason {
     match x {
-        Some(crate::xml_model::ExtraRyuukyokuReason::KyuusyuKyuuhai) => {
-            crate::json_model::ExtraRyuukyokuReason::KyuusyuKyuuhai
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::KyuusyuKyuuhai) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::KyuusyuKyuuhai
         }
-        Some(crate::xml_model::ExtraRyuukyokuReason::SuuchaRiichi) => {
-            crate::json_model::ExtraRyuukyokuReason::SuuchaRiichi
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::SuuchaRiichi) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::SuuchaRiichi
         }
-        Some(crate::xml_model::ExtraRyuukyokuReason::SanchaHoura) => {
-            crate::json_model::ExtraRyuukyokuReason::SanchaHoura
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::SanchaHoura) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::SanchaHoura
         }
-        Some(crate::xml_model::ExtraRyuukyokuReason::SuukanSanra) => {
-            crate::json_model::ExtraRyuukyokuReason::SuukanSanra
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::SuukanSanra) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::SuukanSanra
         }
-        Some(crate::xml_model::ExtraRyuukyokuReason::SuufuuRenda) => {
-            crate::json_model::ExtraRyuukyokuReason::SuufuuRenda
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::SuufuuRenda) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::SuufuuRenda
         }
-        Some(crate::xml_model::ExtraRyuukyokuReason::NagashiMangan) => {
-            crate::json_model::ExtraRyuukyokuReason::NagashiMangan
+        Some(crate::xml_format::model::ExtraRyuukyokuReason::NagashiMangan) => {
+            crate::tenhou_format::model::ExtraRyuukyokuReason::NagashiMangan
         }
-        None => crate::json_model::ExtraRyuukyokuReason::Ryuukyoku,
+        None => crate::tenhou_format::model::ExtraRyuukyokuReason::Ryuukyoku,
     }
 }
 
@@ -295,7 +295,7 @@ fn is_not_ura_zero(x: &YakuPair) -> bool {
     !matches!(
         x,
         YakuPair {
-            yaku: crate::json_model::Yaku::UraDora,
+            yaku: crate::tenhou_format::model::Yaku::UraDora,
             level: YakuLevel::Normal(0)
         }
     )
@@ -319,7 +319,7 @@ fn conv_ranked_score_yakuman(v: &ActionAGARI, num: u8, oya: Player) -> RankedSco
     }
 }
 
-fn conv_yaku_vec(vs: &[(crate::xml_model::Yaku, u8)]) -> Vec<YakuPair> {
+fn conv_yaku_vec(vs: &[(crate::xml_format::model::Yaku, u8)]) -> Vec<YakuPair> {
     vs.iter()
         .map(|&(yaku, han)| YakuPair {
             yaku: conv_yaku(yaku),
@@ -329,7 +329,7 @@ fn conv_yaku_vec(vs: &[(crate::xml_model::Yaku, u8)]) -> Vec<YakuPair> {
         .collect()
 }
 
-fn conv_yakuman_vec(vs: &[crate::xml_model::Yaku]) -> Vec<YakuPair> {
+fn conv_yakuman_vec(vs: &[crate::xml_format::model::Yaku]) -> Vec<YakuPair> {
     vs.iter()
         .map(|&yaku| YakuPair {
             yaku: conv_yaku(yaku),
@@ -394,15 +394,15 @@ fn conv_delta_points_ryuukyoku(v: &ActionRYUUKYOKU) -> Vec<i32> {
 
 fn conv_round_result_from_ryuukyoku(v: &ActionRYUUKYOKU) -> ConvResult<RoundResult> {
     let reason = match conv_extra_ryuukyoku_reason(&v.reason) {
-        crate::json_model::ExtraRyuukyokuReason::Ryuukyoku => match (
+        crate::tenhou_format::model::ExtraRyuukyokuReason::Ryuukyoku => match (
             v.hai0.is_some(),
             v.hai1.is_some(),
             v.hai2.is_some(),
             v.hai3.is_some(),
         ) {
-            (true, true, true, true) => crate::json_model::ExtraRyuukyokuReason::TenpaiEverybody,
-            (false, false, false, false) => crate::json_model::ExtraRyuukyokuReason::TenpaiNobody,
-            _ => crate::json_model::ExtraRyuukyokuReason::Ryuukyoku,
+            (true, true, true, true) => crate::tenhou_format::model::ExtraRyuukyokuReason::TenpaiEverybody,
+            (false, false, false, false) => crate::tenhou_format::model::ExtraRyuukyokuReason::TenpaiNobody,
+            _ => crate::tenhou_format::model::ExtraRyuukyokuReason::Ryuukyoku,
         },
         x => x,
     };
@@ -457,12 +457,12 @@ fn is_valid_player_action(action: &Action, target_player: Player) -> bool {
     }
 }
 
-fn conv_dir(d: crate::xml_model::Direction) -> crate::json_model::Direction {
+fn conv_dir(d: crate::xml_format::model::Direction) -> crate::tenhou_format::model::Direction {
     match d {
-        crate::xml_model::Direction::SelfSeat => crate::json_model::Direction::SelfSeat,
-        crate::xml_model::Direction::Shimocha => crate::json_model::Direction::Shimocha,
-        crate::xml_model::Direction::Kamicha => crate::json_model::Direction::Kamicha,
-        crate::xml_model::Direction::Toimen => crate::json_model::Direction::Toimen,
+        crate::xml_format::model::Direction::SelfSeat => crate::tenhou_format::model::Direction::SelfSeat,
+        crate::xml_format::model::Direction::Shimocha => crate::tenhou_format::model::Direction::Shimocha,
+        crate::xml_format::model::Direction::Kamicha => crate::tenhou_format::model::Direction::Kamicha,
+        crate::xml_format::model::Direction::Toimen => crate::tenhou_format::model::Direction::Toimen,
     }
 }
 
@@ -548,13 +548,13 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
                                 })
                             } else if called_tile.is_red() {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Kamicha => {
+                                    crate::tenhou_format::model::Direction::Kamicha => {
                                         (called_tile, tile, tile)
                                     }
-                                    crate::json_model::Direction::Toimen => {
+                                    crate::tenhou_format::model::Direction::Toimen => {
                                         (tile, called_tile, tile)
                                     }
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile, called_tile)
                                     }
                                     _ => panic!("unexpected"),
@@ -562,7 +562,7 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
                                 incoming.push(IncomingTile::Pon { dir, combination });
                             } else {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile.to_red(), tile)
                                     }
                                     _ => (tile, tile, tile.to_red()),
@@ -601,13 +601,13 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
                                 })
                             } else if called_tile.is_red() {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Kamicha => {
+                                    crate::tenhou_format::model::Direction::Kamicha => {
                                         (called_tile, tile, tile)
                                     }
-                                    crate::json_model::Direction::Toimen => {
+                                    crate::tenhou_format::model::Direction::Toimen => {
                                         (tile, called_tile, tile)
                                     }
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile, called_tile)
                                     }
                                     _ => panic!("unexpected"),
@@ -619,7 +619,7 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
                                 });
                             } else {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile.to_red(), tile)
                                     }
                                     _ => (tile, tile, tile.to_red()),
@@ -648,13 +648,13 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
 
                             if called_tile.is_red() {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Kamicha => {
+                                    crate::tenhou_format::model::Direction::Kamicha => {
                                         (called_tile, tile, tile, tile)
                                     }
-                                    crate::json_model::Direction::Toimen => {
+                                    crate::tenhou_format::model::Direction::Toimen => {
                                         (tile, called_tile, tile, tile)
                                     }
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile, tile, called_tile)
                                     }
                                     _ => panic!("unexpected"),
@@ -662,7 +662,7 @@ fn replay_actions(actions: &[&Action]) -> ConvResult<(Vec<IncomingTile>, Vec<Out
                                 incoming.push(IncomingTile::Daiminkan { combination, dir });
                             } else {
                                 let combination = match dir {
-                                    crate::json_model::Direction::Shimocha => {
+                                    crate::tenhou_format::model::Direction::Shimocha => {
                                         (tile, tile, tile.to_red(), tile)
                                     }
                                     _ => (tile, tile, tile, tile.to_red()),
