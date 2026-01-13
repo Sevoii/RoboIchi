@@ -130,19 +130,10 @@ impl GameplayLoader {
         self.load_events(&events)
     }
 
-//     #[pyo3(name = "load_json_log")]
-//     fn load_json_log(&self, obj: &PyAny) -> Result<Vec<Vec<Gameplay>>> {
-//         // let mut events = raw_log
-//         //     .lines()
-//         //     .map(json::from_str)
-//         //     .collect::<Result<Vec<Event>, _>>()
-//         //     .context("failed to parse log")?;
-//         // if self.augmented {
-//         //     events.iter_mut().for_each(Event::augment);
-//         // }
-//         // self.load_events(&events)
-//
-//     }
+    #[pyo3(name = "load_json_log")]
+    fn load_json_log(&self, raw_log: &str) -> Result<Vec<Gameplay>> {
+        self.load_log(raw_log)
+    }
 
     #[pyo3(name = "load_gz_log_files")]
     fn load_gz_log_files_py(&self, gzip_filenames: Vec<String>) -> Result<Vec<Vec<Gameplay>>> {
