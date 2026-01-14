@@ -14,7 +14,6 @@ use flate2::read::GzDecoder;
 use ndarray::prelude::*;
 use numpy::{PyArray1, PyArray2};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use rayon::prelude::*;
 use serde_json as json;
 use tinyvec::ArrayVec;
@@ -138,6 +137,20 @@ impl GameplayLoader {
     #[pyo3(name = "load_gz_log_files")]
     fn load_gz_log_files_py(&self, gzip_filenames: Vec<String>) -> Result<Vec<Vec<Gameplay>>> {
         self.load_gz_log_files(gzip_filenames)
+    }
+
+    #[pyo3(name = "load_json_log_batch")]
+    fn load_json_log_batch(&self, batch_json: Vec<String>) -> Result<Vec<Vec<Gameplay>>> {
+        batch_json
+            .into_iter()
+            .map(|s| {
+                let mut events: Vec<Event> = json::from_str(&s)?;
+                if self.augmented {
+                    events.iter_mut().for_each(Event::augment);
+                }
+                Ok(self.load_events(&events)?)
+            })
+            .collect()
     }
 
     fn __repr__(&self) -> String {
@@ -432,9 +445,9 @@ impl Gameplay {
         self.masks.push(mask);
         self.at_kyoku.push(ctx.kyoku_idx as u8);
         // only discard and kan will discount
-        self.apply_gamma.push(label <= 37);
+        // self.apply_gamma.push(label <= 37);
         self.at_turns.push(ctx.state.at_turn());
-        self.shantens.push(ctx.state.shanten());
+        // self.shantens.push(ctx.state.shanten());
 
         if let Some(invisibles) = ctx.invisibles {
             let invisible_obs = invisibles[ctx.kyoku_idx].encode(
