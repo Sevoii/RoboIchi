@@ -637,24 +637,25 @@ impl<'a> ObsEncoderContext<'a> {
         (arr, self.mask)
     }
 
-    // player hand (TILES 252 MELD 1 MELD 2 MELD 3 MELD 4)
-    // player discards (TILES 252)
-    // kami hand (MELD 1 252 MELD 2 252 MELD 3 252 MELD 4 252)
-    // kami discards (TILES 252)
+    // player hand (TILES MELD 1 MELD 2 MELD 3 MELD 4)
+    // player discards (TILES)
+    // kami hand (MELD 1 MELD 2 MELD 3 MELD 4)
+    // kami discards (TILES)
     // toimen hand (...)
-    // toimen discards ()
-    // shimo hand ()
-    // shimo discards ()
-    // round description (round wind, dealer, riichi sticks, honba count, tiles left, hero score, kami score, toimen score, shimo score, hero rii, kami rii, toimen rii, shimo rii, dora indicators x5)
+    // toimen discards (...)
+    // shimo hand (...)
+    // shimo discards (...)
+    // round description (round wind, seat wind, riichi sticks, honba count, tiles left, hero score, kami score, toimen score, shimo score, hero rii, kami rii, toimen rii, shimo rii, dora indicators x5, at_kan_select)
 
     // tiles are encoded in t37 format (normal but akas take one more)
-    // pond is encoded as 0b00111111 <- t37 format
-    //                    0b01000000 <- is riichi tile
-    //                    0b10000000 <- is called
-    // separators use 252 value
+    // pond is encoded as 0b000111111 <- t37 format
+    //                    0b001000000 <- is tedashi tile
+    //                    0b010000000 <- is riichi tile
+    //                    0b100000000 <- is called
     //
     // meld encoding:
-    // meld type (0 = chii, 1 = pon, 2 = ankan, 3 = daiminkan, 4 = shouminkan) + (0 = hero, 1 = kami, 2 = toimen, 3 = shimo) << 2 + 64
+    // meld type (0 = chii, 1 = pon, 2 = ankan, 3 = daiminkan, 4 = shouminkan) + (0 = hero, 1 = kami, 2 = toimen, 3 = shimo) << 3 + 64
+    // ((0 = chii, 1 = pon, 2 = ankan, 3 = daiminkan, 4 = shouminkan) + (0 = hero, 1 = kami, 2 = toimen, 3 = shimo) << 3) << 6 + lowest_tile_num
     // TILES
 
     fn encode_obs_self(mut self) -> (Array2<f32>, Array1<bool>) {
@@ -662,7 +663,7 @@ impl<'a> ObsEncoderContext<'a> {
         let cans = state.last_cans;
 
         // Fix this so we don't hardcode 10 in
-        self.arr.fill_rows(0, 10, 252.0);
+        self.arr.fill_rows(0, 10, -1.0);
 
         // state
         //     .tehai
