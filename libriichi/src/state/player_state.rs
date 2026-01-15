@@ -24,6 +24,7 @@ use tinyvec::{ArrayVec, TinyVec};
 pub struct PlayerState {
     pub(super) player_id: u8,
 
+    /// TL: Hand (player hand)
     /// Does not include aka.
     #[derivative(Default(value = "[0; 34]"))]
     pub(super) tehai: [u8; 34],

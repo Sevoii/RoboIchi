@@ -11,5 +11,10 @@ with sqlite3.connect(db_loc) as conn:
     cur = conn.cursor()
     data = [mjlog2json.convert_xml_to_mjai(bz2.decompress(i[0]).decode()) for i in cur.execute("SELECT log_content FROM logs WHERE NOT is_tonpusen AND NOT is_hirosima LIMIT 5")]
 
-loader = riichi.dataset.GameplayLoader(3, oracle=False)
+loader = riichi.dataset.GameplayLoader(5, oracle=False)
 data = loader.load_json_log_batch(data)
+
+obs, mask = data[0][0].take_obs(), data[0][0].take_masks()
+
+print(obs[0])
+print(len(obs[0][0]))

@@ -124,6 +124,14 @@ impl<'a> ObsEncoderContext<'a> {
     }
 
     fn encode_obs(mut self) -> (Array2<f32>, Array1<bool>) {
+        match self.version {
+            1 | 2 | 3 | 4 => self.encode_obs_mortal(),
+            5 => self.encode_obs_self(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn encode_obs_mortal(mut self) -> (Array2<f32>, Array1<bool>) {
         let state = self.state;
         let cans = state.last_cans;
 
@@ -628,6 +636,475 @@ impl<'a> ObsEncoderContext<'a> {
         debug_assert!(arr.iter().all(|&v| (0. ..=1.).contains(&v)));
         (arr, self.mask)
     }
+
+    // player hand (TILES 252 MELD 1 MELD 2 MELD 3 MELD 4)
+    // player discards (TILES 252)
+    // kami hand (MELD 1 252 MELD 2 252 MELD 3 252 MELD 4 252)
+    // kami discards (TILES 252)
+    // toimen hand (...)
+    // toimen discards ()
+    // shimo hand ()
+    // shimo discards ()
+    // round description (round wind, dealer, riichi sticks, honba count, tiles left, hero score, kami score, toimen score, shimo score, hero rii, kami rii, toimen rii, shimo rii, dora indicators x5)
+
+    // tiles are encoded in t37 format (normal but akas take one more)
+    // pond is encoded as 0b00111111 <- t37 format
+    //                    0b01000000 <- is riichi tile
+    //                    0b10000000 <- is called
+    // separators use 252 value
+    //
+    // meld encoding:
+    // meld type (0 = chii, 1 = pon, 2 = ankan, 3 = daiminkan, 4 = shouminkan) + (0 = hero, 1 = kami, 2 = toimen, 3 = shimo) << 2 + 64
+    // TILES
+
+    fn encode_obs_self(mut self) -> (Array2<f32>, Array1<bool>) {
+        let state = self.state;
+        let cans = state.last_cans;
+
+        // Fix this so we don't hardcode 10 in
+        self.arr.fill_rows(0, 10, 252.0);
+
+        // state
+        //     .tehai
+        //     .iter()
+        //     .enumerate()
+        //     .filter(|&(_, &count)| count > 0)
+        //     .for_each(|(tile_id, &count)| {
+        //         let n = count as usize;
+        //         self.arr.assign_rows(self.idx, tile_id, n, 1.);
+        //     });
+        // self.idx += 4;
+        //
+        // state
+        //     .akas_in_hand
+        //     .into_iter()
+        //     .enumerate()
+        //     .filter(|&(_, has_it)| has_it)
+        //     .for_each(|(i, _)| self.arr.fill(self.idx + i, 1.));
+        // self.idx += 3;
+        //
+        // for &score in &state.scores {
+        //     let v = score.clamp(0, 100_000) as f32 / 100_000.;
+        //     self.arr.fill(self.idx, v);
+        //     self.idx += 1;
+        //
+        //     match self.version {
+        //         2 | 3 => IntegerEncoder::new(score as usize / 100, 500)
+        //             .rbf_intervals(10)
+        //             .encode(&mut self),
+        //         4 => {
+        //             let v = score.clamp(0, 30_000) as f32 / 30_000.;
+        //             self.arr.fill(self.idx, v);
+        //             self.idx += 1;
+        //         }
+        //         _ => (),
+        //     }
+        // }
+        //
+        // let n = state.rank as usize;
+        // self.arr.fill(self.idx + n, 1.);
+        // self.idx += 4;
+        //
+        // let n = state.kyoku as usize;
+        // match self.version {
+        //     // for v1, this was a mistake, it actually only uses 3 channels.
+        //     1 => self.arr.fill_rows(self.idx, n, 1.),
+        //     2 | 3 | 4 => self.arr.fill(self.idx + n, 1.),
+        //     _ => unreachable!(),
+        // }
+        // self.idx += 4;
+        //
+        // let cap = match self.version {
+        //     1 | 4 => 10,
+        //     2 | 3 => 6,
+        //     _ => unreachable!(),
+        // };
+        // let n = state.honba as usize;
+        // IntegerEncoder::new(n, cap)
+        //     .rescale(self.version == 4)
+        //     .rbf_intervals(3)
+        //     .encode(&mut self);
+        // let n = state.kyotaku as usize;
+        // IntegerEncoder::new(n, cap)
+        //     .rescale(self.version == 4)
+        //     .rbf_intervals(3)
+        //     .encode(&mut self);
+        //
+        // self.arr.assign(self.idx, state.bakaze.as_usize(), 1.);
+        // self.arr.assign(self.idx + 1, state.jikaze.as_usize(), 1.);
+        // self.idx += 2;
+        //
+        // if matches!(self.version, 2 | 3 | 4) {
+        //     let n = (state.bakaze.as_u8() - tu8!(E)).min(1) * 4 + state.kyoku;
+        //     IntegerEncoder::new(n as usize, 7)
+        //         .rescale(true)
+        //         .encode(&mut self);
+        // }
+        //
+        // self.encode_tile_set(state.dora_indicators);
+        //
+        // state.kawa[0]
+        //     .iter()
+        //     .take(6)
+        //     .for_each(|kawa_item| self.encode_self_kawa(kawa_item.as_ref()));
+        // self.idx += (6 - state.kawa[0].len().min(6)) * SELF_KAWA_ITEM_CHANNELS;
+        //
+        // state.kawa[0]
+        //     .iter()
+        //     .rev()
+        //     .take(18)
+        //     .for_each(|kawa_item| self.encode_self_kawa(kawa_item.as_ref()));
+        // self.idx += (18 - state.kawa[0].len().min(18)) * SELF_KAWA_ITEM_CHANNELS;
+        //
+        // let max_kawa_len = state.kawa.iter().map(|k| k.len()).max().unwrap();
+        // if matches!(self.version, 3 | 4) {
+        //     for (turn, kawa_item) in state.kawa[0].iter().enumerate() {
+        //         if let Some(kawa_item) = kawa_item {
+        //             let sutehai = kawa_item.sutehai;
+        //             let tid = sutehai.tile.deaka().as_usize();
+        //             let v = (-0.2 * (max_kawa_len - 1 - turn) as f32).exp();
+        //             self.arr.assign(self.idx, tid, v);
+        //         }
+        //     }
+        //     self.idx += 1;
+        // }
+        //
+        // for player_kawa in &state.kawa[1..] {
+        //     player_kawa
+        //         .iter()
+        //         .take(6)
+        //         .for_each(|kawa_item| self.encode_kawa(kawa_item.as_ref()));
+        //     self.idx += (6 - player_kawa.len().min(6)) * KAWA_ITEM_CHANNELS;
+        //
+        //     player_kawa
+        //         .iter()
+        //         .rev()
+        //         .take(18)
+        //         .for_each(|kawa_item| self.encode_kawa(kawa_item.as_ref()));
+        //     self.idx += (18 - player_kawa.len().min(18)) * KAWA_ITEM_CHANNELS;
+        //
+        //     match self.version {
+        //         2 => {
+        //             for (turn, kawa_item) in player_kawa.iter().flatten().enumerate() {
+        //                 let row = (turn / 6).min(2);
+        //                 let tid = kawa_item.sutehai.tile.deaka().as_usize();
+        //                 self.arr.assign(self.idx + row, tid, 1.);
+        //                 if kawa_item.sutehai.is_tedashi {
+        //                     self.arr.assign(self.idx + 3 + row, tid, 1.);
+        //                 }
+        //             }
+        //             self.idx += 6;
+        //         }
+        //         3 | 4 => {
+        //             for (turn, kawa_item) in player_kawa.iter().enumerate() {
+        //                 if let Some(kawa_item) = kawa_item {
+        //                     let sutehai = kawa_item.sutehai;
+        //                     let tid = sutehai.tile.deaka().as_usize();
+        //                     let v = (-0.2 * (max_kawa_len - 1 - turn) as f32).exp();
+        //                     self.arr.assign(self.idx, tid, v);
+        //                     if sutehai.is_tedashi {
+        //                         self.arr.assign(self.idx + 1, tid, v);
+        //                     }
+        //                     if sutehai.is_riichi {
+        //                         self.arr.assign(self.idx + 2, tid, v);
+        //                     }
+        //                 }
+        //             }
+        //             self.idx += 3;
+        //         }
+        //         _ => (),
+        //     }
+        // }
+        //
+        // let v = state.tiles_left as f32 / 69.;
+        // self.arr.fill(self.idx, v);
+        // self.idx += 1;
+        //
+        // for count in state.doras_owned {
+        //     IntegerEncoder::new(count as usize, 12)
+        //         .rescale(true)
+        //         .rbf_intervals(3)
+        //         .encode(&mut self);
+        // }
+        //
+        // let doras_unseen = state.dora_indicators.len() as u8 * 4 + 3 - state.doras_seen;
+        // IntegerEncoder::new(doras_unseen as usize, 5 * 4 + 3)
+        //     .rescale(true)
+        //     .rbf_intervals(4)
+        //     .encode(&mut self);
+        //
+        // for player_kawa_overview in &state.kawa_overview {
+        //     self.encode_tile_set(player_kawa_overview.iter().copied());
+        // }
+        //
+        // for player_fuuro in &state.fuuro_overview {
+        //     for f in player_fuuro {
+        //         for tile in f {
+        //             let tile_id = tile.deaka().as_usize();
+        //             let i = (0..4)
+        //                 .find(|&i| self.arr.get(self.idx + i, tile_id) == 0.)
+        //                 .unwrap();
+        //             self.arr.assign(self.idx + i, tile_id, 1.);
+        //             // It is not possible to have more than one aka in a fuuro
+        //             // set, at least in tenhou rule, so we simply use one
+        //             // channel here.
+        //             if tile.is_aka() {
+        //                 self.arr.fill(self.idx + 4, 1.);
+        //             }
+        //         }
+        //         self.idx += 5;
+        //     }
+        //     self.idx += (4 - player_fuuro.len()) * 5;
+        // }
+        //
+        // for player_ankan in &state.ankan_overview {
+        //     for tile in player_ankan {
+        //         let tile_id = tile.as_usize();
+        //         self.arr.assign(self.idx, tile_id, 1.);
+        //     }
+        //     self.idx += 1;
+        // }
+        //
+        // if matches!(self.version, 2 | 3 | 4) {
+        //     for (tid, count) in state.tiles_seen.iter().copied().enumerate() {
+        //         self.arr.assign(self.idx, tid, count as f32 / 4.);
+        //     }
+        //     self.idx += 1;
+        //
+        //     for &player_last_tedashi in &state.last_tedashis[1..] {
+        //         if let Some(sutehai) = player_last_tedashi {
+        //             let tile = sutehai.tile;
+        //             let tile_id = tile.deaka().as_usize();
+        //
+        //             self.arr.assign(self.idx, tile_id, 1.);
+        //             if tile.is_aka() {
+        //                 self.arr.fill(self.idx + 1, 1.);
+        //             }
+        //             if sutehai.is_dora {
+        //                 self.arr.fill(self.idx + 2, 1.);
+        //             }
+        //         }
+        //         self.idx += 3;
+        //     }
+        //     for &player_riichi_sutehai in &state.riichi_sutehais[1..] {
+        //         if let Some(sutehai) = player_riichi_sutehai {
+        //             let tile = sutehai.tile;
+        //             let tile_id = tile.deaka().as_usize();
+        //
+        //             self.arr.assign(self.idx, tile_id, 1.);
+        //             if tile.is_aka() {
+        //                 self.arr.fill(self.idx + 1, 1.);
+        //             }
+        //             if sutehai.is_dora {
+        //                 self.arr.fill(self.idx + 2, 1.);
+        //             }
+        //         }
+        //         self.idx += 3;
+        //     }
+        // }
+        //
+        // state.riichi_declared[1..]
+        //     .iter()
+        //     .enumerate()
+        //     .filter(|&(_, &b)| b)
+        //     .for_each(|(i, _)| self.arr.fill(self.idx + i, 1.));
+        // self.idx += 3;
+        // state.riichi_accepted[1..]
+        //     .iter()
+        //     .enumerate()
+        //     .filter(|&(_, &b)| b)
+        //     .for_each(|(i, _)| self.arr.fill(self.idx + i, 1.));
+        // self.idx += 3;
+        //
+        // state
+        //     .waits
+        //     .iter()
+        //     .enumerate()
+        //     .filter(|&(_, &c)| c)
+        //     .for_each(|(t, _)| self.arr.assign(self.idx, t, 1.));
+        // self.idx += 1;
+        //
+        // if state.at_furiten {
+        //     self.arr.fill(self.idx, 1.);
+        // }
+        // self.idx += 1;
+        //
+        // let n = state.shanten as usize;
+        // IntegerEncoder::new(n, 6).one_hot(true).encode(&mut self);
+        //
+        // if state.riichi_accepted[0] {
+        //     self.arr.fill(self.idx, 1.);
+        // }
+        // self.idx += 1;
+        //
+        // if self.at_kan_select {
+        //     self.arr.fill(self.idx, 1.);
+        // }
+        // self.idx += 1;
+        //
+        if cans.can_pass() {
+            let tile = state
+                .last_kawa_tile
+                .expect("building chi/pon/daiminkan/ron feature without any kawa tile");
+            let tile_id = tile.deaka().as_usize();
+
+        //     self.arr.assign(self.idx, tile_id, 1.);
+        //     if tile.is_aka() {
+        //         self.arr.fill(self.idx + 1, 1.);
+        //     }
+        //     if state.dora_factor[tile.deaka().as_usize()] > 0 {
+        //         self.arr.fill(self.idx + 2, 1.);
+        //     }
+        //
+            // pass
+            if !self.at_kan_select {
+                self.mask[ACTION_SPACE - 1] = true;
+            } else if cans.can_daiminkan {
+                self.mask[tile_id] = true;
+            }
+        }
+        // self.idx += 3;
+        //
+        if cans.can_discard {
+            state
+                .discard_candidates_aka()
+                .iter()
+                .enumerate()
+                .filter(|&(_, &c)| c)
+                .for_each(|(t, _)| {
+        //             let deaka_t = match t as u8 {
+        //                 tu8!(5mr) => tuz!(5m),
+        //                 tu8!(5pr) => tuz!(5p),
+        //                 tu8!(5sr) => tuz!(5s),
+        //                 _ => t,
+        //             };
+        //             self.arr.assign(self.idx, deaka_t, 1.);
+                    if !self.at_kan_select {
+                        self.mask[t] = true;
+                    }
+                });
+
+        //     state
+        //         .keep_shanten_discards
+        //         .iter()
+        //         .enumerate()
+        //         .filter(|&(_, &c)| c)
+        //         .for_each(|(t, _)| self.arr.assign(self.idx + 1, t, 1.));
+        //     state
+        //         .next_shanten_discards
+        //         .iter()
+        //         .enumerate()
+        //         .filter(|&(_, &c)| c)
+        //         .for_each(|(t, _)| self.arr.assign(self.idx + 2, t, 1.));
+        //
+        //     if state.shanten <= 1 {
+        //         state
+        //             .discard_candidates_with_unconditional_tenpai()
+        //             .iter()
+        //             .enumerate()
+        //             .filter(|&(_, &c)| c)
+        //             .for_each(|(t, _)| self.arr.assign(self.idx + 3, t, 1.));
+        //     }
+        //
+        //     if state.riichi_declared[0] {
+        //         self.arr.fill(self.idx + 4, 1.);
+        //     }
+        }
+        // self.idx += 5;
+        //
+        if cans.can_riichi {
+            // self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[37] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_chi_low {
+            // self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[38] = true;
+            }
+        }
+        if cans.can_chi_mid {
+            // self.arr.fill(self.idx + 1, 1.);
+            if !self.at_kan_select {
+                self.mask[39] = true;
+            }
+        }
+        if cans.can_chi_high {
+            // self.arr.fill(self.idx + 2, 1.);
+            if !self.at_kan_select {
+                self.mask[40] = true;
+            }
+        }
+        // self.idx += 3;
+        //
+        if cans.can_pon {
+            self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[41] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_daiminkan {
+        //     self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[42] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_ankan {
+            for tile in state.ankan_candidates {
+                // self.arr.assign(self.idx, tile.as_usize(), 1.);
+                if self.at_kan_select {
+                    self.mask[tile.as_usize()] = true;
+                }
+            }
+            if !self.at_kan_select {
+                self.mask[42] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_kakan {
+            for tile in state.kakan_candidates {
+        //         self.arr.assign(self.idx, tile.as_usize(), 1.);
+                if self.at_kan_select {
+                    self.mask[tile.as_usize()] = true;
+                }
+            }
+            if !self.at_kan_select {
+                self.mask[42] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_agari() {
+        //     self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[43] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        if cans.can_ryukyoku {
+        //     self.arr.fill(self.idx, 1.);
+            if !self.at_kan_select {
+                self.mask[44] = true;
+            }
+        }
+        // self.idx += 1;
+        //
+        //
+        // assert_eq!(self.idx, self.arr.rows());
+        let arr = self.arr.build();
+        debug_assert!(arr.iter().all(|&v| (0. ..=1.).contains(&v)));
+        (arr, self.mask)
+    }
+
 
     fn encode_ev(&mut self, value: f32) {
         let v = value.clamp(0., 100_000.) / 100_000.;

@@ -287,14 +287,17 @@ def test_gen_dump():
 
     while state.get_next_event():
         state.process_event()
-        a.append(state.dump(readable=True))
+        # a.append(state.dump(readable=True))
+        a.append(state.dump_compressed(0))
 
-    for i, j in enumerate(state.current_round.players):
-        full = shanten_calcs.convert_t14_to_full([k.tile for k in j.closed_hand])
-        a[-1]["players"][i]["shanten"] = shanten_calcs.calc_all(full, len(j.closed_hand) // 3)
+    print(len(a[5]))
 
-    with open("../db/log2.json", "w") as f:
-        json.dump(game_data.serialize(readable=True), f, indent=2)
+    # for i, j in enumerate(state.current_round.players):
+    #     full = shanten_calcs.convert_t14_to_full([k.tile for k in j.closed_hand])
+    #     a[-1]["players"][i]["shanten"] = shanten_calcs.calc_all(full, len(j.closed_hand) // 3)
+    #
+    # with open("../db/log2.json", "w") as f:
+    #     json.dump(game_data.serialize(readable=True), f, indent=2)
 
 
 if __name__ == "__main__":
