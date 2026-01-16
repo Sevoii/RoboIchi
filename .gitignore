@@ -22,3 +22,5 @@ libriichi/target
 libriichi/Cargo.lock
 
 *-checkpoint.ipynb
+
+db/games_clean.db
