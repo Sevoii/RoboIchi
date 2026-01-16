@@ -40,7 +40,7 @@ class LazyLoadDatabase:
 class DatabaseDataset(IterableDataset):
     def __init__(self, db_loc: str, table_name="logs", page_size=1000):
         self.db = LazyLoadDatabase(db_loc, table_name)
-        self.loader = riichi.dataset.GameplayLoader(5, oracle=False)
+        self.loader = riichi.dataset.GameplayLoader(3, oracle=False)
 
     def __iter__(self):
         with self.db as db:
@@ -59,3 +59,18 @@ class DatabaseDataset(IterableDataset):
                 for i in gameplay:
                     for j in zip(i.take_obs(), i.take_actions(), i.take_masks()):
                         yield j
+
+
+def test():
+    dataset = DatabaseDataset("../db/games_clean.db")
+
+    k = 0
+    for i in dataset:
+        print(i)
+        k += 1
+        if k >= 100:
+            break
+
+
+if __name__ == "__main__":
+    test()
