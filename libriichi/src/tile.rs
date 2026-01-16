@@ -177,6 +177,14 @@ impl Tile {
             o => o,
         }
     }
+
+    #[inline]
+    #[must_use]
+    pub fn encode_t37(self) -> u8 {
+        // TODO: figure out if we want to use this t37 index or mortal's t37
+        let tile = self.deaka();
+        tile.0 + (self.is_aka() as u8) + 3.min(tile.0 / 9)
+    }
 }
 
 impl Default for Tile {
