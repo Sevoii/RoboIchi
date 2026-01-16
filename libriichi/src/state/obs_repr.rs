@@ -645,10 +645,13 @@ impl<'a> ObsEncoderContext<'a> {
     // toimen discards (...)
     // shimo hand (...)
     // shimo discards (...)
-    // round description (round wind, seat wind, riichi sticks, honba count, tiles left, hero score, kami score, toimen score, shimo score, hero rii, kami rii, toimen rii, shimo rii, dora indicators x5, at_kan_select)
+    // round description 
+    //       (round wind, seat wind, riichi sticks, honba count, tiles left, hero score, 
+    //        kami score, toimen score, shimo score, hero rii, kami rii, toimen rii, shimo rii, 
+    //        dora indicators x5, at_kan_select, no. of kans made)
 
     // tiles are encoded in t37 format (normal but akas take one more)
-    // pond is encoded as 0b000111111 <- t37 format
+    // kawa is encoded as 0b000111111 <- t37 format
     //                    0b001000000 <- is tedashi tile
     //                    0b010000000 <- is riichi tile
     //                    0b100000000 <- is called
@@ -665,6 +668,28 @@ impl<'a> ObsEncoderContext<'a> {
         // Fix this so we don't hardcode 10 in
         self.arr.fill_rows(0, 10, -1.0);
 
+        // hero hand: tehai (doesn't include aka tho)
+        // hero discards: kawa
+        // villan hand: furro
+        // villan discards: kawa
+        // round description:
+        //      round wind: bakaze
+        //      seat wind: jikaze
+        //      riichi sticks: kyotaku
+        //      honba count: honba
+        //      tiles left: tiles_left
+        //      hero score: scores[0]
+        //      shimo score: scores[1]
+        //      toimen score: scores[2]
+        //      kami score: scores[3]
+        //      hero rii: riichi_declared[0]
+        //      shimo rii: riichi_declared[1]
+        //      toimen rii: riichi_declared[2]
+        //      kami rii: riichi_declared[3]
+        //      dora indicators x5: dora_indicators
+        //      at_kan_select: self.at_kan_select
+        //      no. of kans made: kans_on_board
+        
         // state
         //     .tehai
         //     .iter()
