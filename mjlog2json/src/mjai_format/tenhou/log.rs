@@ -1,6 +1,5 @@
 use super::json_scheme::{ActionItem, KyokuMeta, RawLog, ResultItem};
 use crate::mjai_format::{KyokuFilter, Tile};
-use crate::tenhou_format::model;
 
 use serde::Serialize;
 use serde_json::{self as json, Value};

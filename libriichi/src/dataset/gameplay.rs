@@ -2,6 +2,7 @@ use super::{Grp, Invisible};
 use crate::chi_type::ChiType;
 use crate::mjai::Event;
 use crate::state::PlayerState;
+use mjlog2json::api::convert_xml_to_mjai;
 use std::array;
 use std::fs::File;
 use std::io;
@@ -135,7 +136,8 @@ impl GameplayLoader {
         if self.augmented {
             events.iter_mut().for_each(Event::augment);
         }
-        Ok(self.load_events(&events)?) }
+        Ok(self.load_events(&events)?)
+    }
 
     #[pyo3(name = "load_gz_log_files")]
     fn load_gz_log_files_py(&self, gzip_filenames: Vec<String>) -> Result<Vec<Vec<Gameplay>>> {
@@ -154,6 +156,13 @@ impl GameplayLoader {
                 Ok(self.load_events(&events)?)
             })
             .collect()
+    }
+
+    #[pyo3(name = "load_gzip_xml_log")]
+    fn load_gzip_log(&self, gzip_log: &str) -> Result<Vec<Gameplay>> {
+        let gz = GzDecoder::new(gzip_log.as_bytes());
+        let raw = io::read_to_string(gz)?;
+        self.load_json_log(&convert_xml_to_mjai(raw)?)
     }
 
     fn __repr__(&self) -> String {
