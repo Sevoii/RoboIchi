@@ -323,43 +323,6 @@ class MortalEngine:
         return actions.tolist(), q_out.tolist(), masks.tolist(), is_greedy.tolist()
 
 
-def get_engine() -> MortalEngine:
-    # check if GPU is available
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
-
-    # latest binary model
-    control_state_file = "./mortal.pth"
-    control_state_file = pathlib.Path(__file__).parent / control_state_file
-    state = torch.load(control_state_file, weights_only=False, map_location=device)
-    cfg = state['config']
-    version = cfg['control'].get('version', 1)
-    conv_channels = cfg['resnet']['conv_channels']
-    num_blocks = cfg['resnet']['num_blocks']
-
-    stable_mortal = Brain(version=version, num_blocks=num_blocks, conv_channels=conv_channels, Norm="GN").eval()
-    stable_dqn = CategoricalPolicy().eval()
-    stable_mortal.load_state_dict(state['mortal'])
-    stable_dqn.load_state_dict(state['policy_net'])
-    # stable_mortal.compile()
-    # stable_dqn.compile()
-
-    engine = MortalEngine(
-        stable_mortal,
-        stable_dqn,
-        is_oracle=False,
-        version=version,
-        device=device,
-        enable_amp=False,
-        enable_quick_eval=False,
-        enable_rule_based_agari_guard=True,
-        name='policy',
-    )
-    return engine
-
-
 def load_model() -> riichi.mjai.Bot:
     # check if GPU is available
     if torch.cuda.is_available():
