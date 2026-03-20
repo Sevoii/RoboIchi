@@ -21,19 +21,23 @@ CONVERSIONS = {
 }
 
 
+def tile_to_tenhou(tile):
+    return CONVERSIONS[tile]
+
+
 class RoundData:
     def __init__(self, start_event):
         self.round = ["E", "S", "W"].index(start_event["bakaze"]) * 4 + start_event["kyoku"] - 1
         self.honba = start_event["honba"]
         self.sticks = start_event["kyotaku"]
 
-        self.dora = [RoundData.tile_to_tenhou(start_event["dora_marker"])]
+        self.dora = [tile_to_tenhou(start_event["dora_marker"])]
         self.ura_dora = []
 
         self.scores = start_event["scores"]
         self.deltas = []
 
-        self.haipais = [[RoundData.tile_to_tenhou(tile) for tile in hand] for hand in start_event["tehais"]]
+        self.haipais = [[tile_to_tenhou(tile) for tile in hand] for hand in start_event["tehais"]]
         self.draws = [[], [], [], []]
         self.discards = [[], [], [], []]
 
@@ -61,45 +65,41 @@ class RoundData:
             ["不明"]
         ]
 
-    @staticmethod
-    def tile_to_tenhou(tile):
-        return CONVERSIONS[tile]
-
     def process_event(self, event):
         if event["type"] == "dora":
-            self.dora.append(RoundData.tile_to_tenhou(event["dora_marker"]))
+            self.dora.append(tile_to_tenhou(event["dora_marker"]))
         elif event["type"] == "tsumo":
-            self.draws[event["actor"]].append(RoundData.tile_to_tenhou(event["pai"]))
+            self.draws[event["actor"]].append(tile_to_tenhou(event["pai"]))
         elif event["type"] == "dahai":
             if event["tsumogiri"]:
                 self.discards[event["actor"]].append(60)
             else:
-                self.discards[event["actor"]].append(RoundData.tile_to_tenhou(event["pai"]))
+                self.discards[event["actor"]].append(tile_to_tenhou(event["pai"]))
         elif event["type"] == "chi":
-            chi_meld = ["c", str(RoundData.tile_to_tenhou(event["pai"]))] + [str(RoundData.tile_to_tenhou(tile)) for
-                                                                             tile in event["consumed"]]
+            chi_meld = ["c", str(tile_to_tenhou(event["pai"]))] + [str(tile_to_tenhou(tile)) for
+                                                                   tile in event["consumed"]]
             self.draws[event["actor"]].append("".join(chi_meld))
         elif event["type"] == "pon":
             relative_pos = (event["target"] - event["actor"]) % 4
-            pon_meld = [str(RoundData.tile_to_tenhou(tile)) for tile in event["consumed"]]
-            pon_meld.insert(3 - relative_pos, f"p{RoundData.tile_to_tenhou(event['pai'])}")
+            pon_meld = [str(tile_to_tenhou(tile)) for tile in event["consumed"]]
+            pon_meld.insert(3 - relative_pos, f"p{tile_to_tenhou(event['pai'])}")
             self.draws[event["actor"]].append("".join(pon_meld))
 
             self.pon_calls[event["actor"]].append(event)
         elif event["type"] == "ankan":
-            kan_meld = [str(RoundData.tile_to_tenhou(tile)) for tile in event["consumed"]]
+            kan_meld = [str(tile_to_tenhou(tile)) for tile in event["consumed"]]
             kan_meld.insert(3, "a")
             self.discards[event["actor"]].append("".join(kan_meld))
         elif event["type"] == "kakan":
             found_call = [i for i in self.pon_calls[event["actor"]] if i["pai"][:2] == event["pai"][:2]][0]
             relative_pos = (found_call["target"] - found_call["actor"]) % 4
-            kan_meld = [str(RoundData.tile_to_tenhou(tile)) for tile in event["consumed"]]
-            kan_meld.insert(3 - relative_pos, f"k{RoundData.tile_to_tenhou(event['pai'])}")
+            kan_meld = [str(tile_to_tenhou(tile)) for tile in event["consumed"]]
+            kan_meld.insert(3 - relative_pos, f"k{tile_to_tenhou(event['pai'])}")
             self.discards[event["actor"]].append("".join(kan_meld))
         elif event["type"] == "daiminkan":
             relative_pos = (event["target"] - event["actor"]) % 4
 
-            kan_meld = [str(RoundData.tile_to_tenhou(tile)) for tile in event["consumed"]]
+            kan_meld = [str(tile_to_tenhou(tile)) for tile in event["consumed"]]
             if relative_pos == 1:
                 kan_meld.insert(3, "m")
             else:
@@ -116,7 +116,7 @@ class RoundData:
             pass
         elif event["type"] == "hora":
             # maybe add some winning stuff
-            self.ura_dora = [RoundData.tile_to_tenhou(tile) for tile in event["ura_markers"]]
+            self.ura_dora = [tile_to_tenhou(tile) for tile in event["ura_markers"]]
         else:
             raise RuntimeError(f"No Event Found: {event['type']}")
 
