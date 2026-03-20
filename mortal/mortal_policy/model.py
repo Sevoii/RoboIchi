@@ -360,7 +360,7 @@ def get_engine() -> MortalEngine:
     return engine
 
 
-def load_model(seat: int) -> riichi.mjai.Bot:
+def load_model() -> riichi.mjai.Bot:
     # check if GPU is available
     if torch.cuda.is_available():
         device = "cuda"
@@ -396,5 +396,4 @@ def load_model(seat: int) -> riichi.mjai.Bot:
         name='policy',
     )
 
-    bot = riichi.mjai.Bot(engine, seat)
-    return bot
+    return engine

@@ -375,7 +375,7 @@ def sample_top_p(logits, p):
     sampled = probs_idx.gather(-1, probs_sort.multinomial(1)).squeeze(-1)
     return sampled
 
-def load_model(seat: int) -> riichi.mjai.Bot:
+def load_model() -> riichi.mjai.Bot:
     if torch.cuda.is_available():
         device = "cuda"
     else:
@@ -402,5 +402,4 @@ def load_model(seat: int) -> riichi.mjai.Bot:
         version = 4,
     )
 
-    bot = riichi.mjai.Bot(engine, seat)
-    return bot
+    return engine

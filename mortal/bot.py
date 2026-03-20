@@ -1,10 +1,11 @@
 from riichienv import RiichiEnv, Action, GameRule
+import riichi
 
 
 class MortalAgent:
-    def __init__(self, player_id: int, load_model):
+    def __init__(self, engine, player_id: int):
         self.player_id = player_id
-        self.model = load_model(player_id)
+        self.model = riichi.mjai.Bot(engine, player_id)
 
     def act(self, obs) -> Action:
         resp = None

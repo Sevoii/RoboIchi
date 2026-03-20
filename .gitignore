@@ -26,3 +26,5 @@ libriichi/Cargo.lock
 db/games_clean.db
 db/all_games.db
 db/all_games_clean.db
+
+mortal/mortal_bot_example.zip
