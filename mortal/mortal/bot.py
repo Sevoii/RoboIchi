@@ -1,11 +1,11 @@
 from riichienv import RiichiEnv, Action, GameRule
-from model import load_model
+from .model import load_model
 
 
 class MortalAgent:
-    def __init__(self, player_id: int):
+    def __init__(self, player_id: int, device="cpu"):
         self.player_id = player_id
-        self.model = load_model(player_id)
+        self.model = load_model(player_id, device)
 
     def act(self, obs) -> Action:
         resp = None

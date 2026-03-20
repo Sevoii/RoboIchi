@@ -1,17 +1,14 @@
 import numpy as np
 import torch
 from torch import nn, Tensor
-from torch.nn import init, functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torch.distributions import Normal, Categorical
 from typing import *
 from functools import partial
 from itertools import permutations
+import os
 
 import riichi
-
-# from riichi.mjai import Bot
-# from riichi.consts import obs_shape, oracle_obs_shape, ACTION_SPACE, GRP_SIZE
 
 class ChannelAttention(nn.Module):
     def __init__(self, channels, ratio=16, actv_builder=nn.ReLU, bias=True):
@@ -290,7 +287,7 @@ class GRP(nn.Module):
         labels = torch.zeros(batch_size, dtype=torch.int64, device=mappings.device)
         labels[mappings[:, 1]] = mappings[:, 0]
         return labels
-    
+
 
 class MortalEngine:
     def __init__(
@@ -378,29 +375,29 @@ def sample_top_p(logits, p):
     sampled = probs_idx.gather(-1, probs_sort.multinomial(1)).squeeze(-1)
     return sampled
 
-def load_model(seat: int) -> riichi.mjai.Bot:
-    device = torch.device('cpu')
- 
-    brain_state_file = "./mortal_brain.safetensors"
-    dqn_state_file = "./mortal_dqn.safetensors"
- 
+def load_model(seat: int, device="cpu") -> riichi.mjai.Bot:
+    torch_device = torch.device(device)
+
+    brain_state_file = os.path.abspath(__file__ + "/../mortal_brain.safetensors")
+    dqn_state_file = os.path.abspath(__file__ + "/../mortal_dqn.safetensors")
+
     from safetensors.torch import load_file
     mortal = Brain(version=4, conv_channels=192, num_blocks=40).eval()
     dqn = DQN(version=4).eval()
-    mortal.load_state_dict(load_file(brain_state_file, device='cpu'))
-    dqn.load_state_dict(load_file(dqn_state_file, device='cpu'))
- 
+    mortal.load_state_dict(load_file(brain_state_file, device=device))
+    dqn.load_state_dict(load_file(dqn_state_file, device=device))
+
     engine = MortalEngine(
         mortal,
         dqn,
         is_oracle = False,
-        device = device,
+        device = torch_device,
         enable_amp = False,
         enable_quick_eval = False,
         enable_rule_based_agari_guard = True,
         name = 'mortal',
         version = 4,
     )
- 
+
     bot = riichi.mjai.Bot(engine, seat)
     return bot
