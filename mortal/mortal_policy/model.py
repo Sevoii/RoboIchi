@@ -1,0 +1,400 @@
+import torch
+import pathlib
+import traceback
+import numpy as np
+from torch import nn, Tensor
+from torch.distributions import Normal, Categorical
+from typing import *
+from functools import partial
+import json
+
+import os
+
+import riichi
+
+
+def orthogonal_init(layer, gain=1.0):
+    nn.init.orthogonal_(layer.weight, gain=gain)
+    nn.init.constant_(layer.bias, 0)
+
+
+class ChannelAttention(nn.Module):
+    def __init__(self, channels, ratio=16, actv_builder=nn.ReLU, bias=True):
+        super().__init__()
+        self.shared_mlp = nn.Sequential(
+            nn.Linear(channels, channels // ratio, bias=bias),
+            actv_builder(),
+            nn.Linear(channels // ratio, channels, bias=bias),
+        )
+        if bias:
+            for mod in self.modules():
+                if isinstance(mod, nn.Linear):
+                    nn.init.constant_(mod.bias, 0)
+
+    def forward(self, x: Tensor):
+        avg_out = self.shared_mlp(x.mean(-1))
+        max_out = self.shared_mlp(x.amax(-1))
+        weight = (avg_out + max_out).sigmoid()
+        x = weight.unsqueeze(-1) * x
+        return x
+
+
+class ResBlock(nn.Module):
+    def __init__(
+            self,
+            channels,
+            *,
+            norm_builder=nn.Identity,
+            actv_builder=nn.ReLU,
+            pre_actv=False,
+    ):
+        super().__init__()
+        self.pre_actv = pre_actv
+
+        if pre_actv:
+            self.res_unit = nn.Sequential(
+                norm_builder(),
+                actv_builder(),
+                nn.Conv1d(channels, channels, kernel_size=3, padding=1, bias=False),
+                norm_builder(),
+                actv_builder(),
+                nn.Conv1d(channels, channels, kernel_size=3, padding=1, bias=False),
+            )
+        else:
+            self.res_unit = nn.Sequential(
+                nn.Conv1d(channels, channels, kernel_size=3, padding=1, bias=False),
+                norm_builder(),
+                actv_builder(),
+                nn.Conv1d(channels, channels, kernel_size=3, padding=1, bias=False),
+                norm_builder(),
+            )
+            self.actv = actv_builder()
+        self.ca = ChannelAttention(channels, actv_builder=actv_builder, bias=True)
+
+    def forward(self, x):
+        out = self.res_unit(x)
+        out = self.ca(out)
+        out = out + x
+        if not self.pre_actv:
+            out = self.actv(out)
+        return out
+
+
+class ResNet(nn.Module):
+    def __init__(
+            self,
+            in_channels,
+            conv_channels,
+            num_blocks,
+            *,
+            norm_builder=nn.Identity,
+            actv_builder=nn.ReLU,
+            pre_actv=False,
+    ):
+        super().__init__()
+
+        blocks = []
+        for _ in range(num_blocks):
+            blocks.append(ResBlock(
+                conv_channels,
+                norm_builder=norm_builder,
+                actv_builder=actv_builder,
+                pre_actv=pre_actv,
+            ))
+
+        layers = [nn.Conv1d(in_channels, conv_channels, kernel_size=3, padding=1, bias=False)]
+        if pre_actv:
+            layers += [*blocks, norm_builder(), actv_builder()]
+        else:
+            layers += [norm_builder(), actv_builder(), *blocks]
+        layers += [
+            nn.Conv1d(conv_channels, 32, kernel_size=3, padding=1),
+            actv_builder(),
+            nn.Flatten(),
+            nn.Linear(32 * 34, 1024),
+        ]
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class Brain(nn.Module):
+    def __init__(self, *, conv_channels, num_blocks, is_oracle=False, version=1, Norm="BN"):
+        super().__init__()
+        self.is_oracle = is_oracle
+        self.version = version
+
+        in_channels = riichi.consts.obs_shape(version)[0]
+        if is_oracle:
+            in_channels += riichi.consts.oracle_obs_shape(version)[0]
+
+        norm_builder = partial(nn.BatchNorm1d, conv_channels, momentum=0.01)
+        actv_builder = partial(nn.Mish, inplace=True)
+        pre_actv = True
+
+        match version:
+            case 1:
+                actv_builder = partial(nn.ReLU, inplace=True)
+                pre_actv = False
+                self.latent_net = nn.Sequential(
+                    nn.Linear(1024, 512),
+                    nn.ReLU(inplace=True),
+                )
+                self.mu_head = nn.Linear(512, 512)
+                self.logsig_head = nn.Linear(512, 512)
+            case 2:
+                pass
+            case 3 | 4:
+                norm_builder = partial(nn.BatchNorm1d, conv_channels, momentum=0.01, eps=1e-3)
+                if Norm == "GN":
+                    norm_builder = partial(nn.GroupNorm, num_channels=conv_channels, num_groups=32, eps=1e-3)
+            case _:
+                raise ValueError(f'Unexpected version {self.version}')
+
+        self.encoder = ResNet(
+            in_channels=in_channels,
+            conv_channels=conv_channels,
+            num_blocks=num_blocks,
+            norm_builder=norm_builder,
+            actv_builder=actv_builder,
+            pre_actv=pre_actv,
+        )
+        self.actv = actv_builder()
+
+        # always use EMA or CMA when True
+        self._freeze_bn = False
+
+    def forward(self, obs: Tensor, invisible_obs: Optional[Tensor] = None) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        if self.is_oracle:
+            assert invisible_obs is not None
+            obs = torch.cat((obs, invisible_obs), dim=1)
+        phi = self.encoder(obs)
+
+        match self.version:
+            case 1:
+                latent_out = self.latent_net(phi)
+                mu = self.mu_head(latent_out)
+                logsig = self.logsig_head(latent_out)
+                return mu, logsig
+            case 2 | 3 | 4:
+                return self.actv(phi)
+            case _:
+                raise ValueError(f'Unexpected version {self.version}')
+
+    def train(self, mode=True):
+        super().train(mode)
+        if self._freeze_bn:
+            for mod in self.modules():
+                if isinstance(mod, nn.BatchNorm1d):
+                    mod.eval()
+                    # I don't think this benefits
+                    # module.requires_grad_(False)
+        return self
+
+    def reset_running_stats(self):
+        for mod in self.modules():
+            if isinstance(mod, nn.BatchNorm1d):
+                mod.reset_running_stats()
+
+    def freeze_bn(self, value: bool):
+        self._freeze_bn = value
+        return self.train(self.training)
+
+
+class CategoricalPolicy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(1024, 256)
+        self.fc2 = nn.Linear(256, riichi.consts.ACTION_SPACE)
+        orthogonal_init(self.fc1)
+        orthogonal_init(self.fc2)
+
+    def forward(self, phi, mask):
+        phi = torch.tanh(self.fc1(phi))
+        phi = self.fc2(phi).masked_fill(~mask, -torch.inf)
+        return torch.softmax(phi, dim=-1)
+
+
+class DQN(nn.Module):
+    def __init__(self, *, version=1):
+        super().__init__()
+        self.version = version
+        match version:
+            case 1:
+                self.v_head = nn.Linear(512, 1)
+                self.a_head = nn.Linear(512, riichi.consts.ACTION_SPACE)
+            case 2 | 3:
+                hidden_size = 512 if version == 2 else 256
+                self.v_head = nn.Sequential(
+                    nn.Linear(1024, hidden_size),
+                    nn.Mish(inplace=True),
+                    nn.Linear(hidden_size, 1),
+                )
+                self.a_head = nn.Sequential(
+                    nn.Linear(1024, hidden_size),
+                    nn.Mish(inplace=True),
+                    nn.Linear(hidden_size, riichi.consts.ACTION_SPACE),
+                )
+            case 4:
+                self.net = nn.Linear(1024, 1 + riichi.consts.ACTION_SPACE)
+                nn.init.constant_(self.net.bias, 0)
+
+    def forward(self, phi, mask):
+        if self.version == 4:
+            v, a = self.net(phi).split((1, riichi.consts.ACTION_SPACE), dim=-1)
+        else:
+            v = self.v_head(phi)
+            a = self.a_head(phi)
+        a_sum = a.masked_fill(~mask, 0.).sum(-1, keepdim=True)
+        mask_sum = mask.sum(-1, keepdim=True)
+        a_mean = a_sum / mask_sum
+        q = (v + a - a_mean).masked_fill(~mask, -torch.inf)
+        return q
+
+
+class MortalEngine:
+    def __init__(
+            self,
+            brain,
+            dqn,
+            is_oracle,
+            version,
+            device=None,
+            stochastic_latent=False,
+            enable_amp=False,
+            enable_quick_eval=True,
+            enable_rule_based_agari_guard=False,
+            name='NoName',
+            explore=False,
+    ):
+        self.engine_type = 'mortal'
+        self.device = device or torch.device('cpu')
+        assert isinstance(self.device, torch.device)
+        self.brain = brain.to(self.device).eval()
+        self.dqn = dqn.to(self.device).eval()
+        self.is_oracle = is_oracle
+        self.version = version
+        self.stochastic_latent = stochastic_latent
+
+        self.enable_amp = enable_amp
+        self.enable_quick_eval = enable_quick_eval
+        self.enable_rule_based_agari_guard = enable_rule_based_agari_guard
+        self.name = name
+        self.explore = explore
+
+    def react_batch(self, obs, masks, invisible_obs):
+        try:
+            with (
+                torch.autocast(self.device.type, enabled=self.enable_amp),
+                torch.inference_mode(),
+            ):
+                return self._react_batch(obs, masks, invisible_obs)
+        except Exception as ex:
+            raise Exception(f'{ex}\n{traceback.format_exc()}')
+
+    def _react_batch(self, obs, masks, invisible_obs):
+        obs = torch.as_tensor(np.stack(obs, axis=0), device=self.device)
+        masks = torch.as_tensor(np.stack(masks, axis=0), device=self.device)
+        if invisible_obs is not None:
+            invisible_obs = torch.as_tensor(np.stack(invisible_obs, axis=0), device=self.device)
+        batch_size = obs.shape[0]
+
+        match self.version:
+            case 1:
+                mu, logsig = self.brain(obs, invisible_obs)
+                if self.stochastic_latent:
+                    latent = Normal(mu, logsig.exp() + 1e-6).sample()
+                else:
+                    latent = mu
+                q_out = self.dqn(latent, masks)
+            case 2 | 3 | 4:
+                phi = self.brain(obs)
+                q_out = self.dqn(phi, masks)
+
+        if self.explore:
+            greedy_actions = q_out.argmax(-1)
+            actions = Categorical(probs=q_out).sample()
+            is_greedy = (actions == greedy_actions)
+        else:
+            is_greedy = torch.ones(batch_size, dtype=torch.bool, device=self.device)
+            actions = q_out.argmax(-1)
+
+        return actions.tolist(), q_out.tolist(), masks.tolist(), is_greedy.tolist()
+
+
+def get_engine() -> MortalEngine:
+    # check if GPU is available
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+
+    # latest binary model
+    control_state_file = "./mortal.pth"
+    control_state_file = pathlib.Path(__file__).parent / control_state_file
+    state = torch.load(control_state_file, weights_only=False, map_location=device)
+    cfg = state['config']
+    version = cfg['control'].get('version', 1)
+    conv_channels = cfg['resnet']['conv_channels']
+    num_blocks = cfg['resnet']['num_blocks']
+
+    stable_mortal = Brain(version=version, num_blocks=num_blocks, conv_channels=conv_channels, Norm="GN").eval()
+    stable_dqn = CategoricalPolicy().eval()
+    stable_mortal.load_state_dict(state['mortal'])
+    stable_dqn.load_state_dict(state['policy_net'])
+    # stable_mortal.compile()
+    # stable_dqn.compile()
+
+    engine = MortalEngine(
+        stable_mortal,
+        stable_dqn,
+        is_oracle=False,
+        version=version,
+        device=device,
+        enable_amp=False,
+        enable_quick_eval=False,
+        enable_rule_based_agari_guard=True,
+        name='policy',
+    )
+    return engine
+
+
+def load_model(seat: int) -> riichi.mjai.Bot:
+    # check if GPU is available
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    brain_state_file = os.path.abspath(__file__ + "/../mortal_brain.safetensors")
+    dqn_state_file = os.path.abspath(__file__ + "/../mortal_dqn.safetensors")
+    config_file = os.path.abspath(__file__ + "/../config.json")
+    from safetensors.torch import load_file
+
+    with open(config_file) as f:
+        cfg = json.load(f)
+
+    version = cfg['control'].get('version', 1)
+    conv_channels = cfg['resnet']['conv_channels']
+    num_blocks = cfg['resnet']['num_blocks']
+
+    stable_mortal = Brain(version=version, num_blocks=num_blocks, conv_channels=conv_channels, Norm="GN").eval()
+    stable_dqn = CategoricalPolicy().eval()
+    stable_mortal.load_state_dict(load_file(brain_state_file, device=device))
+    stable_dqn.load_state_dict(load_file(dqn_state_file, device=device))
+
+    engine = MortalEngine(
+        stable_mortal,
+        stable_dqn,
+        is_oracle=False,
+        version=version,
+        device=torch.device(device),
+        enable_amp=False,
+        enable_quick_eval=False,
+        enable_rule_based_agari_guard=True,
+        name='policy',
+    )
+
+    bot = riichi.mjai.Bot(engine, seat)
+    return bot

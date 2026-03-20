@@ -375,8 +375,11 @@ def sample_top_p(logits, p):
     sampled = probs_idx.gather(-1, probs_sort.multinomial(1)).squeeze(-1)
     return sampled
 
-def load_model(seat: int, device="cpu") -> riichi.mjai.Bot:
-    torch_device = torch.device(device)
+def load_model(seat: int) -> riichi.mjai.Bot:
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
 
     brain_state_file = os.path.abspath(__file__ + "/../mortal_brain.safetensors")
     dqn_state_file = os.path.abspath(__file__ + "/../mortal_dqn.safetensors")
@@ -391,7 +394,7 @@ def load_model(seat: int, device="cpu") -> riichi.mjai.Bot:
         mortal,
         dqn,
         is_oracle = False,
-        device = torch_device,
+        device = torch.device(device),
         enable_amp = False,
         enable_quick_eval = False,
         enable_rule_based_agari_guard = True,
